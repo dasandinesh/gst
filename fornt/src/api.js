@@ -8,10 +8,17 @@
 // JSON". This helper reads the body as text first and turns both that case and a
 // dropped connection into a readable message.
 
+// In dev, REACT_APP_API_URL is unset so requests stay relative and go through
+// CRA's "proxy" (package.json) to localhost:8000. In production (Vercel), the
+// frontend and backend are separate deployments, so this must point at the
+// deployed backend's URL — set REACT_APP_API_URL in the frontend's Vercel
+// project settings.
+const API_BASE = process.env.REACT_APP_API_URL || '';
+
 export async function fetchJson(url, options = {}) {
   let response;
   try {
-    response = await fetch(url, options);
+    response = await fetch(`${API_BASE}${url}`, options);
   } catch {
     throw new Error('Cannot reach the server. Check that the backend is running on port 8000.');
   }

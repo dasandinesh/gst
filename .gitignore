@@ -2,6 +2,7 @@ node_modules/
 build/
 dist/
 .claude/
+.vercel/
 back/config/config.env
 .env
 .env.local

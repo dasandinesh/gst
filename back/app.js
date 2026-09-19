@@ -32,9 +32,13 @@ dotenv.config({ path: path.join(__dirname, 'config/config.env') });
 
 connectDatabase();
 
+// CORS_ORIGIN is a comma-separated list of extra allowed origins (e.g. the
+// deployed frontend's Vercel URL) added on top of the local-dev ones below,
+// so production origins don't need to be hardcoded here.
+const extraOrigins = (process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
 app.use(
   cors({
-    origin: ["http://127.0.0.1:3000", "http://localhost:3000","http://192.168.1.103:3000"],
+    origin: ["http://127.0.0.1:3000", "http://localhost:3000", "http://192.168.1.103:3000", ...extraOrigins],
       methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true, // ✅ Allows cookies
   })
