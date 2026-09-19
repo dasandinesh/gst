@@ -147,7 +147,7 @@ const OrderEntry = () => {
         !name || customerList.some((cust) => cust.name?.toLowerCase() === name.trim().toLowerCase());
     const productExists = (name) =>
         !name || productList.some((prod) => prod.name?.toLowerCase() === name.trim().toLowerCase());
-    const { register, control, handleSubmit, setValue, reset, getValues, watch } = useForm({
+    const { register, control, handleSubmit, setValue, reset, getValues } = useForm({
         defaultValues: {
             customer: { name: "" },
             bill_details: {

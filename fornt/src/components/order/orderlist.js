@@ -20,7 +20,8 @@ const OrderList = () => {
     } catch (error) { setMessage(error.message); }
     finally { setLoading(false); }
   }, [filters]);
-  useEffect(() => { loadOrders({ customer: '', startDate: '', endDate: '' }); }, []); // Initial full list.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only, not on every filters change
+  useEffect(() => { loadOrders({ customer: '', startDate: '', endDate: '' }); }, []);
   const update = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
   const submitFilter = (event) => { event.preventDefault(); loadOrders(); };
   const clear = () => { const empty = { customer: '', startDate: '', endDate: '' }; setFilters(empty); loadOrders(empty); };

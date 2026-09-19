@@ -11,17 +11,6 @@ const todayString = () => {
     return now.toISOString().split("T")[0];
 };
 
-function CurrentDate() {
-  const [date, setDate] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setDate(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  return <p>{date.toLocaleString()}</p>;
-}
-
 // Any stored/ISO date -> yyyy-mm-dd for a <input type="date">.
 const toDateInput = (value) => {
     if (!value) return todayString();
