@@ -5,11 +5,13 @@ const mongoose = require('mongoose');
 // the connect() promise so concurrent requests hitting a cold container don't
 // each kick off their own mongoose.connect() call.
 let connectPromise = null;
+let lastError = null;
 
 function connectDatabase() {
   const uri = process.env.DB_LOCAL_URL;
   if (!uri) {
-    console.error('[db] DB_LOCAL_URL not configured');
+    lastError = 'DB_LOCAL_URL not configured';
+    console.error('[db]', lastError);
     return Promise.resolve();
   }
   if (mongoose.connection.readyState === 1) return Promise.resolve();
@@ -18,14 +20,19 @@ function connectDatabase() {
     // pool — keep it small so they don't collectively exhaust the DB's
     // connection limit (e.g. Atlas free tier).
     connectPromise = mongoose
-      .connect(uri, { maxPoolSize: 5 })
-      .then(() => console.log(`[db] connected to ${uri}`))
+      .connect(uri, { maxPoolSize: 5, serverSelectionTimeoutMS: 7000 })
+      .then(() => {
+        lastError = null;
+        console.log('[db] connected');
+      })
       .catch((error) => {
         connectPromise = null;
+        lastError = error.message;
         console.error('[db] connection error', error);
       });
   }
   return connectPromise;
 }
 
+connectDatabase.lastError = () => lastError;
 module.exports = connectDatabase;

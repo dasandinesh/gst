@@ -67,12 +67,14 @@ app.use('/api/vehicles', vehiclerouter);
 // Health check for the dashboard's three status lights: this endpoint answering at
 // all means the backend is up; its `db` field says whether Mongo is connected.
 // readyState: 0 disconnected, 1 connected, 2 connecting, 3 disconnecting.
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  await connectDatabase();
   const dbState = mongoose.connection.readyState;
   res.json({
     ok: true,
     db: dbState === 1,
     dbState,
+    dbError: dbState === 1 ? null : connectDatabase.lastError(),
     time: new Date().toISOString(),
   });
 });
