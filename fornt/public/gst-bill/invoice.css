@@ -52,6 +52,14 @@ th { font-weight: 700; text-align: center; }
 
 .detail-table td { border: 1px solid #000; }
 
+/* Buyer/Ship-to table (left) and invoice-details table (right) sit
+   side by side instead of stacking. */
+.bill-deteils-head { display: flex; }
+.bill-deteils-head > table { margin: 0; }
+.bill-deteils-head > .layout-table { flex: 1 1 60%; }
+.bill-deteils-head > .layout-table tr + tr td { border-top: 1.5px solid #000; }
+.bill-deteils-head > .detail-table { flex: 1 1 40%; border-left: 1.5px solid #000; }
+
 .section-title { font-weight: 700; margin-bottom: 2px; }
 .k { font-weight: 700; width: 42%; }
 .eoe { text-align: right; font-weight: 400; }

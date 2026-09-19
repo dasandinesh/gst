@@ -275,9 +275,9 @@ const GstBillEntry = () => {
     }
   };
 
-  // Layout/styling lives in fornt/public/gst-bill/invoice.{html,css} — edit those
-  // to change how a printed bill looks. This just opens the window (synchronously,
-  // so popup blockers don't catch it) and fills it in once the bill HTML is built;
+  // Layout/styling lives in ./gstBillTemplate.js — edit that to change how a
+  // printed bill looks. This just opens the window (synchronously, so popup
+  // blockers don't catch it) and fills it in once the bill HTML is built;
   // the template's own onload triggers window.print().
   const printBill = async (bill, size = 'A4') => {
     const { width, height } = PAPER_WINDOW[size] || PAPER_WINDOW.A4;

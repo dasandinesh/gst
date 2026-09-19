@@ -89,9 +89,9 @@ const GstBillList = () => {
 
   const pageTotal = bills.reduce((sum, bill) => sum + Number(bill.bill_details?.billAmount || 0), 0);
 
-  // Layout/styling lives in fornt/public/gst-bill/invoice.{html,css} — this just
-  // opens the window synchronously (so popup blockers don't catch it) and fills
-  // it in once the bill HTML is built; the template's own onload triggers print.
+  // Layout/styling lives in ./gstBillTemplate.js — this just opens the window
+  // synchronously (so popup blockers don't catch it) and fills it in once the
+  // bill HTML is built; the template's own onload triggers print.
   const printBill = async (bill, size = 'A4') => {
     const { width, height } = PAPER_WINDOW[size] || PAPER_WINDOW.A4;
     const win = window.open('', '_blank', `width=${width},height=${height}`);

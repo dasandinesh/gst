@@ -28,6 +28,7 @@
 
     <div class="title-bar">Tax Invoice</div>
 
+    <div class="bill-deteils-head">
     <table class="layout-table">
       <tr>
         <td>
@@ -37,7 +38,17 @@
           <div>Phone : {{CUSTOMER_PHONE}}</div>
           <div>GSTIN/UIN : {{CUSTOMER_GSTIN}}</div>
         </td>
-        <td>
+      </tr>
+      <tr>
+          <td>
+          <div class="section-title">Ship to:</div>
+          <div class="company-name">{{CUSTOMER_NAME}}</div>
+          <div>{{CUSTOMER_ADDRESS}}</div>
+          <div>Phone : {{CUSTOMER_PHONE}}</div>
+          <div>GSTIN/UIN : {{CUSTOMER_GSTIN}}</div>
+        </td>
+      </tr>
+    </table>
           <table class="detail-table">
             <tr><td class="k">Invoice No.</td><td>{{BILL_NUMBER}}</td></tr>
             <tr><td class="k">Dated</td><td>{{INVOICE_DATE}}</td></tr>
@@ -47,9 +58,8 @@
             <tr><td class="k">Credit</td><td>{{CREDIT}}</td></tr> -->
             {{REMARK_ROW}}
           </table>
-        </td>
-      </tr>
-    </table>
+          </div>
+
 
     <table class="items-table">
       <thead>{{ITEM_HEAD}}</thead>
