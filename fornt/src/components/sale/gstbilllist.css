@@ -1,0 +1,23 @@
+/* Extra styles for gstbilllist.js, layered on top of gstbillentry.css (same
+   gst-bill-page/gst-table/gst-view-* classes) so the report page matches the
+   GST billing page's look without duplicating it. */
+
+.gst-bill-list-page-card { max-width: 1400px; margin: 0 auto; }
+
+.gst-bill-list-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.gst-bill-list-header h1 { margin: 4px 0; font-size: 22px; }
+.gst-bill-list-header p { margin: 0; color: #5e706a; font-size: 13px; }
+.gst-bill-list-eyebrow { margin: 0; color: #237553; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+
+.gst-bill-list-total-label { text-align: right; font-weight: 700; color: #476159; }
+.gst-bill-list-total-value { font-weight: 700; color: #15593e; }
+
+.gst-bill-list-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 16px; color: #476159; font-size: 13px; }
+.gst-bill-list-pagination-buttons { display: flex; gap: 8px; }
+.gst-bill-list-pagination-buttons button { padding: 7px 12px; font: inherit; font-weight: 600; color: #19302a; background: #eef4f1; border: 1px solid #cfe2d8; border-radius: 8px; cursor: pointer; }
+.gst-bill-list-pagination-buttons button:hover:not(:disabled) { background: #e1f2e9; }
+.gst-bill-list-pagination-buttons button:disabled { opacity: .5; cursor: not-allowed; }
+
+@media (max-width: 600px) {
+  .gst-bill-list-header { flex-direction: column; }
+}

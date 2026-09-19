@@ -1,0 +1,81 @@
+/* GST bill print stylesheet — plain CSS, no build step. Edit this file directly
+   and reload the print preview to see changes; nothing in JS needs to change.
+   Paper-size sizing (padding/font) is switched via the body class the JS sets
+   (.paper-a4 / .paper-a5); the @page rule itself is injected separately per
+   print because CSS @page can't be scoped by a class selector.
+
+   Styled to match a classic "Tally" tax-invoice printout: plain black on
+   white, no color fills, boxy borders. */
+
+:root {
+  --gst-pad: 4px 8px;
+  --gst-font: 12.5px;
+  --gst-page-height: 277mm; /* A4 297mm minus 2 x 10mm @page margin */
+}
+body.paper-a5 {
+  --gst-pad: 3px 6px;
+  --gst-font: 10.5px;
+  --gst-page-height: 198mm; /* A5 210mm minus 2 x 6mm @page margin */
+}
+
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; font-size: var(--gst-font); color: #000; margin: 0; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #000; padding: var(--gst-pad); text-align: left; }
+th { font-weight: 700; text-align: center; }
+
+/* Flex column: the items table (flex:1 below) soaks up whatever page space
+   the item rows don't use, so everything after it (words-in-words, tax
+   summary, declaration, footer) always lands at the bottom of the page
+   instead of floating right under a short product list. */
+.gst-invoice { border: 1.5px solid #000; display: flex; flex-direction: column; min-height: var(--gst-page-height); }
+.gst-invoice > table,
+.gst-invoice > div.title-bar,
+.gst-invoice > div.letterhead { border-bottom: 1.5px solid #000; }
+.gst-invoice > table:last-of-type { border-bottom: 0; }
+.gst-invoice > div.thankyou { border-top: 1.5px solid #000; }
+
+.letterhead { text-align: center; padding: 10px 12px 8px; }
+.letterhead .company-name { font-size: 1.6em; }
+
+.title-bar { text-align: center; padding: 6px 12px; font-size: 1.2em; font-weight: 700; }
+
+.company-name { font-size: 1.15em; font-weight: 700; }
+.company-banner { font-weight: 700; padding: 3px 0; margin: 4px 0; 
+  /* border-top: 1px solid #000; border-bottom: 1px solid #000; */
+ }
+
+.layout-table td { border: none; padding: 6px 12px; vertical-align: top; }
+.layout-table td + td { border-left: 1.5px solid #000; }
+.layout-table table { margin: 0; }
+.layout-table table td { padding: var(--gst-pad); }
+
+.detail-table td { border: 1px solid #000; }
+
+.section-title { font-weight: 700; margin-bottom: 2px; }
+.k { font-weight: 700; width: 42%; }
+.eoe { text-align: right; font-weight: 400; }
+
+.items-table { flex: 1 0 auto; height: 100%; }
+.items-table td { text-align: right; }
+.items-table td.l, .items-table th.l { text-align: left; }
+.items-table td.c, .items-table th.c { text-align: center; }
+.items-table td.tax-label { font-style: italic; }
+.total-row td { font-weight: bold; }
+.spacer-row td { height: 100%; border-top: none; border-bottom: none; }
+
+.hsn-table td, .hsn-table th { text-align: center; }
+.hsn-table td.l, .hsn-table th.l { text-align: left; }
+.tax-words { margin: 0; padding: 5px 12px; border-bottom: 1.5px solid #000; font-size: .9em; }
+
+.words-table td { padding: 5px 12px; }
+.words-label { font-weight: 400; }
+.words-value { font-weight: 700; padding-top: 2px !important; }
+
+.decl-box { padding: 8px 12px; font-size: .9em; }
+.decl-box.right { text-align: center; }
+.computer-note { margin-top: 14px; font-style: italic; font-size: .85em; }
+.sign-line { margin-top: 26px; padding-top: 4px; border-top: 1px solid #000; display: inline-block; font-size: .85em; }
+
+.thankyou { text-align: center; padding: 6px; font-size: .9em; }
+.footnote { text-align: center; padding: 0 6px 8px; font-size: .85em; }

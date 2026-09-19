@@ -1,0 +1,126 @@
+/* Shared styles for the Receipts and Customer Ledger screens. */
+.acc-page {
+  max-width: 1000px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+.acc-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.acc-card h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.acc-card .acc-sub {
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.acc-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px 14px;
+  align-items: end;
+}
+.acc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.acc-field span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+.acc-field input,
+.acc-field select {
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  box-sizing: border-box;
+  width: 100%;
+}
+.acc-field small {
+  color: #b91c1c;
+  font-size: 11px;
+}
+.acc-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.acc-actions button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #2c7159;
+  background: #2c7159;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.acc-actions button.secondary {
+  background: #fff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.acc-status {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.acc-status.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.acc-status.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+
+.acc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.acc-table th,
+.acc-table td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  text-align: left;
+}
+.acc-table th { background: #f1f5f9; }
+.acc-table td.num, .acc-table th.num { text-align: right; }
+.acc-table tfoot td { font-weight: 700; background: #f8fafc; }
+.acc-table-wrap { overflow-x: auto; }
+
+.acc-row-actions button {
+  margin-right: 6px;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+.acc-row-actions button.danger { color: #b91c1c; border-color: #fca5a5; }
+
+.acc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.acc-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: min(520px, 100%);
+}
+.acc-modal h2 { margin: 0 0 14px; font-size: 17px; }

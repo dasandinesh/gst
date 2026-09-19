@@ -1,0 +1,31 @@
+.sale-bill-list-total-label {
+  text-align: right;
+  font-weight: 600;
+}
+.sale-bill-list-total-value {
+  font-weight: 600;
+}
+
+.sale-bill-list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #475569;
+}
+.sale-bill-list-pagination-buttons {
+  display: flex;
+  gap: 6px;
+}
+.sale-bill-list-pagination-buttons button {
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.sale-bill-list-pagination-buttons button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}

@@ -1,0 +1,16 @@
+/* Extra styles for stockmaintenance.js, layered on top of gstbillentry.css
+   (gst-bill-page/gst-table/gst-bill-filter) so this page matches the rest of
+   the app's look without duplicating it. */
+
+.stock-page-card { max-width: 1300px; margin: 0 auto; }
+
+.stock-low-toggle { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; font-weight: 600; color: #476159; }
+.stock-low-toggle input { width: auto; min-height: 0; }
+
+.stock-row-low { background: #fff8ec; }
+.stock-badge-low { padding: 3px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 999px; }
+.stock-badge-ok { padding: 3px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #15593e; background: #e1f2e9; border: 1px solid #a9d8bd; border-radius: 999px; }
+
+.stock-adjust-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.stock-adjust-cell .gst-small-input { width: 80px; }
+.stock-adjust-cell button { padding: 6px 10px; font-size: 12px; white-space: nowrap; }

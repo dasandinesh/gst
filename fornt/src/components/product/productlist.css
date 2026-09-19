@@ -1,0 +1,3 @@
+.list-header-actions { display: flex; align-items: center; gap: 12px; }
+.customer-modal.product-add-modal { width: min(860px, 100%); }
+@media (max-width: 600px) { .list-header-actions { flex-direction: column; align-items: stretch; } }

@@ -1,0 +1,102 @@
+.price-page {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+/* Both sections stacked top-to-bottom, own card each. */
+.price-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.price-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px 22px;
+}
+
+.price-header { margin-bottom: 16px; }
+.price-eyebrow {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #2c7159;
+}
+.price-header h1 { margin: 0 0 4px; font-size: 20px; }
+.price-header p { margin: 0; color: #64748b; font-size: 13px; }
+
+.price-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 14px;
+  align-items: end;
+}
+.price-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.price-filters label span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+.price-filters input {
+  height: 34px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  box-sizing: border-box;
+  width: 100%;
+}
+.price-filters button {
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 6px;
+  border: 1px solid #2c7159;
+  background: #2c7159;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.price-filters button:disabled { opacity: .6; cursor: default; }
+
+.price-status {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.price-product-title {
+  margin: 20px 0 10px;
+  font-size: 17px;
+  color: #12352c;
+}
+
+.price-table-wrapper { overflow-x: auto; }
+.price-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.price-table th, .price-table td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  text-align: left;
+}
+.price-table th { background: #f1f5f9; }
+.price-customer { font-weight: 600; }
+.price-table input {
+  width: 100px;
+  height: 30px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  box-sizing: border-box;
+}

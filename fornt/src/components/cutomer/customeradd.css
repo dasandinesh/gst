@@ -1,0 +1,26 @@
+.customer-add-page { box-sizing: border-box; min-height: 100vh; padding: 40px 20px; color: #19302a; }
+.customer-add-card { max-width: 900px; margin: 0 auto; padding: 32px; background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(28, 63, 52, .12); }
+.customer-add-heading { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #dce8e4; }
+.customer-add-heading h1 { margin: 4px 0 8px; font-size: 28px; }
+.customer-add-heading p { margin: 0; color: #5e706a; }
+.customer-add-eyebrow { color: #237553 !important; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.customer-form fieldset { margin: 0 0 26px; padding: 0; border: 0; }
+.customer-form legend { margin-bottom: 14px; font-size: 17px; font-weight: 700; }
+.customer-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.customer-field { display: flex; flex-direction: column; gap: 7px; font-size: 14px; font-weight: 600; }
+.customer-field-wide { grid-column: 1 / -1; }
+.customer-field b { color: #bc3128; }
+.customer-field input { box-sizing: border-box; width: 100%; padding: 11px 12px; color: #19302a; font: inherit; font-weight: 400; border: 1px solid #b9ccc5; border-radius: 8px; outline: none; }
+.customer-field input:focus { border-color: #237553; box-shadow: 0 0 0 3px rgba(35, 117, 83, .14); }
+.field-error { color: #bc3128; font-weight: 400; }
+.form-status { margin: -8px 0 20px; padding: 11px 12px; border-radius: 8px; }
+.form-status.success { color: #15593e; background: #def3e8; }
+.form-status.error { color: #9e2c25; background: #fde8e6; }
+.customer-form-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.customer-form-actions button { padding: 11px 18px; font: inherit; font-weight: 700; border-radius: 8px; cursor: pointer; }
+.primary-button { color: #fff; background: #237553; border: 1px solid #237553; }
+.primary-button:hover:not(:disabled) { background: #185c40; }
+.primary-button:disabled { cursor: wait; opacity: .7; }
+.secondary-button { color: #285749; background: #fff; border: 1px solid #9bb5ac; }
+.secondary-button:hover { background: #f1f7f4; }
+@media (max-width: 600px) { .customer-add-page { padding: 20px 12px; } .customer-add-card { padding: 22px 18px; } .customer-form-grid { grid-template-columns: 1fr; } .customer-field-wide { grid-column: auto; } }

@@ -1,0 +1,96 @@
+<!--
+  GST bill print layout — a plain, real HTML file. Open it in a browser or
+  editor to see/edit the actual markup with normal syntax highlighting.
+  Styling lives in ./invoice.css — edit that for colors/spacing/borders.
+
+  {{TOKENS}} are filled in by fornt/src/components/sale/gstBillTemplate.js at
+  print time. Most are plain text/amounts; a few (ITEM_ROWS, ITEM_HEAD,
+  ITEM_FOOT, HSN_SECTION, REMARK_ROW, ROUND_OFF_ROW, COMPANY_BANNER)
+  are small pre-built HTML snippets because their content is looped or
+  conditional (one row per product, HSN section only if enabled, etc.).
+  Everything else here is static — add/remove/rearrange sections freely.
+-->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>{{TITLE}}</title>
+<link rel="stylesheet" href="/gst-bill/invoice.css" />
+</head>
+<body class="{{PAPER_CLASS}}">
+  <div class="gst-invoice">
+    <div class="letterhead">
+      <div class="company-name">{{SHOP_NAME}}</div>
+      {{COMPANY_BANNER}}
+      <div>{{SHOP_ADDRESS}}</div>
+      <div>GSTIN/UIN: {{SHOP_GSTIN}} &nbsp; State Name : {{SHOP_STATE}} &nbsp; Contact : {{SHOP_PHONES}}</div>
+    </div>
+
+    <div class="title-bar">Tax Invoice</div>
+
+    <table class="layout-table">
+      <tr>
+        <td>
+          <div class="section-title">Buyer (Bill to)</div>
+          <div class="company-name">{{CUSTOMER_NAME}}</div>
+          <div>{{CUSTOMER_ADDRESS}}</div>
+          <div>Phone : {{CUSTOMER_PHONE}}</div>
+          <div>GSTIN/UIN : {{CUSTOMER_GSTIN}}</div>
+        </td>
+        <td>
+          <table class="detail-table">
+            <tr><td class="k">Invoice No.</td><td>{{BILL_NUMBER}}</td></tr>
+            <tr><td class="k">Dated</td><td>{{INVOICE_DATE}}</td></tr>
+            <tr><td class="k">PoS</td><td>{{PLACE_OF_SUPPLY}}</td></tr>
+            <tr><td class="k">Tax Type</td><td>{{TAX_TYPE_LABEL}}</td></tr>
+            <!-- <tr><td class="k">Cash</td><td>{{CASH}}</td></tr>
+            <tr><td class="k">Credit</td><td>{{CREDIT}}</td></tr> -->
+            {{REMARK_ROW}}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <table class="items-table">
+      <thead>{{ITEM_HEAD}}</thead>
+      <tbody>{{ITEM_ROWS}}</tbody>
+      <tfoot>{{ITEM_FOOT}}</tfoot>
+    </table>
+
+    <table class="layout-table words-table">
+      <tr>
+        <td class="words-label">Amount Chargeable (in words)</td>
+        <td class="eoe">E. &amp; O.E</td>
+      </tr>
+      <tr><td colspan="2" class="words-value">{{AMOUNT_WORDS}}</td></tr>
+    </table>
+
+    {{HSN_SECTION}}
+
+    <table class="layout-table">
+      <tr>
+        <td>
+          <div class="decl-box">
+            <strong>Declaration</strong><br />
+            We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+            <div class="sign-line">Customer Signature</div>
+          </div>
+        </td>
+        <td>
+          <div class="decl-box right">
+            <strong>for {{SHOP_NAME}}</strong>
+            <div class="computer-note">This is a computer generated invoice,<br />no signature required.</div>
+            <div class="sign-line">Authorised Signatory</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="thankyou">{{THANKYOU}}</div>
+    <div class="footnote">This is a Computer Generated Invoice</div>
+  </div>
+
+  <style>{{PAGE_STYLE}}</style>
+  <script>window.onload = function () { window.print(); };</script>
+</body>
+</html>

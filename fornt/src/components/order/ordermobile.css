@@ -1,0 +1,333 @@
+.om-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 8px 8px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.om-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.om-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  padding: 8px;
+}
+.om-card-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #12352c;
+}
+
+/* Billing area — customer, add product, product list, totals and save all live in
+   this one card now (one border), separated internally by thin dividers instead of
+   separate bordered cards. */
+.om-card-billing {
+  border: 1.5px solid #2c7159;
+  background: #f4fbf8;
+}
+.om-section-divider {
+  border-top: 1px dashed #cbd5e1;
+  margin: 8px 0;
+}
+.om-actions-inline { margin-top: 6px; }
+
+/* Filter area — the From/To date range above Recent orders — boxed off from the
+   order-card list below it so it reads as its own control, not part of the list. */
+.om-filter-box {
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 6px 6px 0;
+  margin-bottom: 6px;
+  background: #f8fafc;
+}
+
+.om-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  margin-bottom: 4px;
+}
+.om-field span {
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+}
+.om-field-row {
+  display: flex;
+  gap: 6px;
+}
+.om-field-row .om-field { margin-bottom: 4px; }
+
+.om-input {
+  width: 100%;
+  height: 30px;
+  padding: 3px 7px;
+  font-size: 13px; /* >=16px avoids iOS auto-zoom, but this keeps it compact — adjust if that bothers you */
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  box-sizing: border-box;
+  background: #fff;
+}
+.om-input:focus { outline: 2px solid #7fd8b6; outline-offset: 1px; border-color: #2c7159; }
+
+/* Custom tap-to-select dropdown — replaces native <datalist> for Customer name and
+   Product name, since datalist suggestions barely work on mobile browsers. */
+.om-autocomplete { position: relative; }
+.om-suggest-list {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  box-shadow: 0 10px 24px rgba(9, 28, 22, .18);
+}
+.om-suggest-list li + li { margin-top: 2px; }
+.om-suggest-list button {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #12352c;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.om-suggest-list button:hover,
+.om-suggest-list button:focus-visible {
+  background: #e6f4ee;
+  outline: none;
+}
+
+.om-warning {
+  margin: -1px 0 4px;
+  padding: 3px 6px;
+  font-size: 10px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 5px;
+}
+
+.om-btn {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  color: #12352c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.om-btn-block { width: 100%; }
+.om-btn-primary {
+  border-color: #2c7159;
+  background: #2c7159;
+  color: #fff;
+}
+.om-btn-danger {
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+.om-btn-save-inline { margin-top: 6px; }
+
+.om-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.om-status {
+  margin: 0;
+  padding: 5px 7px;
+  font-size: 11px;
+  border-radius: 5px;
+  background: #eef4f1;
+  color: #1f4b3e;
+}
+
+.om-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #12352c;
+}
+.om-checkbox input { width: 15px; height: 15px; }
+
+/* Product cards (replaces the desktop's dense multi-column table). */
+.om-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.om-product-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 6px;
+  background: #f8fafc;
+}
+.om-product-row-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.om-product-name { flex: 1; }
+.om-remove {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 1px solid #fca5a5;
+  border-radius: 5px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 12px;
+  cursor: pointer;
+}
+.om-product-row-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.om-product-row-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.om-product-row-grid label span {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Three stats side by side in one row instead of stacked rows. */
+.om-totals {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.om-totals > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 3px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  text-align: center;
+}
+.om-totals > div span {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+}
+.om-totals > div .om-input { width: 100%; text-align: center; }
+.om-total-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #12352c;
+}
+
+/* Recent-orders list */
+.om-summary { padding-bottom: 10px; }
+.om-order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.om-order-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 6px;
+  background: #f8fafc;
+}
+.om-order-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+.om-order-card-title { font-weight: 700; color: #12352c; font-size: 12px; }
+.om-order-card-sub { font-size: 10px; color: #64748b; margin-top: 1px; }
+.om-order-card-amount { margin-top: 4px; font-size: 13px; font-weight: 700; color: #12352c; }
+.om-order-card-actions { display: flex; gap: 4px; margin-top: 4px; }
+.om-order-card-actions .om-btn { flex: 1; height: 28px; padding: 0 5px; font-size: 11px; }
+
+.om-badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.om-badge.is-billed { background: #d6f0e4; color: #0c261f; }
+.om-badge.is-pending { background: #fef3c7; color: #92400e; }
+
+/* View-details modal */
+.om-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(9, 28, 22, .5);
+}
+.om-modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 10px;
+  background: #fff;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -12px 40px rgba(9, 28, 22, .3);
+}
+.om-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.om-modal-header h3 { margin: 0; color: #12352c; font-size: 14px; }
+.om-modal-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.om-modal-meta > div { display: flex; justify-content: space-between; }
+.om-modal-meta span { color: #64748b; }
+
+@media (min-width: 561px) {
+  .om-page { padding: 12px 8px 24px; }
+}

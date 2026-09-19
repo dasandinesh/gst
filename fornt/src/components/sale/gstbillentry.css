@@ -1,0 +1,182 @@
+/* All styles gstbillentry.js needs, in one file. It used to share class names
+   with ../cutomer/customeradd.css, ../cutomer/customerlist.css and ./sale.css
+   (e.g. ".customer-table td", ".primary-button", ".customer-form fieldset")
+   which collided with those files: CRA/webpack bundles every imported CSS
+   file into one global stylesheet, so two files defining the same class
+   collide by source order, not by which component is actually on screen.
+   Every class this component uses is now uniquely named (gst-* or renamed,
+   e.g. customer-table -> gst-table, primary-button -> gst-primary-button) so
+   nothing here can be affected by, or leak into, any other page again. */
+
+/* Left: bill entry form. Right: bill list. Same two-column idea as the old
+   sale.css .sale-entry-container (form flex:9 / summary flex:3), as a grid. */
+.gst-bill-page { box-sizing: border-box; min-height: 100vh; padding: 10px; color: #19302a; }
+.gst-bill-layout { display: grid; grid-template-columns: 9fr 3fr; gap: 10px; align-items: start; max-width: 1700px; margin: 0 auto; }
+.gst-bill-card, .gst-bill-list-card { width: 100%; box-sizing: border-box; padding: 12px; background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(28, 63, 52, .12); }
+.gst-bill-list-card { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; }
+
+@media (max-width: 600px) {
+  .gst-bill-page { padding: 20px 12px; }
+  .gst-bill-card, .gst-bill-list-card { padding: 18px; }
+}
+@media (max-width: 1200px) {
+  .gst-bill-layout { grid-template-columns: 1fr; }
+  .gst-bill-list-card { position: static; max-height: none; overflow-y: visible; }
+}
+
+.gst-bill-form fieldset { margin: 0 0 6px; padding: 0; border: 0; }
+.gst-bill-form legend { margin-bottom: 4px; font-size: 17px; font-weight: 700; }
+
+/* Same proportions as sale.css's .sale-product-input-grid, but flexible (minmax)
+   so the row still fits inside the narrower left column instead of overflowing. */
+.gst-line-entry { display: grid; grid-template-columns: minmax(140px, 1.8fr) repeat(6, minmax(70px, 1fr)) minmax(70px, 0.9fr); gap: 10px; align-items: end; }
+.gst-input-field { min-width: 0; margin: 0; }
+.gst-text-input { width: 100%; padding: 5px; box-sizing: border-box; }
+.gst-small-input { width: 100%; padding: 5px; box-sizing: border-box; }
+.gst-add-button { width: 100%; padding: 8px 10px; border: 1px solid #2c7159; border-radius: 6px; background: #2c7159; color: #fff; font-weight: 600; cursor: pointer; }
+.gst-add-button:hover { background: #24604a; }
+.gst-field-warning { margin: 4px 0 0; padding: 4px 8px; font-size: 12px; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; }
+
+.gst-lines-table th, .gst-lines-table td { white-space: nowrap; }
+/* Fixed-height, vertically scrolling body for the bill-lines table; the header
+   row stays pinned via sticky positioning while only the rows below it scroll. */
+.gst-lines-table-wrapper { height: 250px; overflow-y: auto; }
+.gst-lines-table-wrapper thead th { position: sticky; top: 0; z-index: 1; }
+/* Renamed from "no-entries"/"remove-entry-button" — both also exist in
+   ../product/productadd.css and ../product/productdetails.css with different
+   styling, which is the same global-collision issue as .customer-table etc. */
+.gst-no-entries { padding: 16px !important; color: #5e706a; font-size: 13px; text-align: center; }
+.gst-remove-line-button { width: 28px; height: 28px; padding: 0; font-size: 14px; line-height: 1; color: #a12d27; background: #fff; border: 1px solid #e4aaa6; border-radius: 6px; cursor: pointer; }
+
+.gst-table-wrapper { overflow-x: auto; }
+.gst-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+.gst-table th { padding: 12px 14px; color: #476159; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #f0f7f4; }
+.gst-table td { padding: 4px; vertical-align: top; border-bottom: 1px solid #e2ece8; }
+.gst-row-name { font-weight: 700; }
+.gst-table-state { padding: 35px !important; color: #5e706a; text-align: center; }
+.gst-row-actions { display: flex; gap: 8px; white-space: nowrap; }
+.gst-edit-button { color: #1b5d44; background: #e1f2e9; border: 1px solid #a9d8bd; }
+.gst-delete-button { color: #a12d27; background: #fff; border: 1px solid #e4aaa6; }
+.gst-view-button { color: #15593e; background: #e1f2e9; border: 1px solid #a9d8bd; }
+
+.gst-hsn-toggle { flex-direction: row !important; align-items: center; gap: 6px !important; font-weight: 600; color: #476159; }
+.gst-hsn-toggle input { width: auto; min-height: 0; }
+
+/* Keep the HSN toggle + date/search filters on one row instead of wrapping,
+   even in the narrower right-hand list column; scroll sideways if it's tight. */
+.gst-bill-filter { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; margin: 0 0 20px; }
+.gst-bill-filter label { display: flex; flex-direction: column; gap: 6px; color: #476159; font-size: 13px; font-weight: 700; }
+.gst-bill-filter input { min-width: 180px; min-height: 40px; box-sizing: border-box; padding: 8px 10px; font: inherit; border: 1px solid #b9ccc5; border-radius: 7px; outline: none; }
+.gst-bill-filter input:focus { border-color: #237553; box-shadow: 0 0 0 3px rgba(35, 117, 83, .14); }
+.gst-bill-list-card .gst-bill-filter { flex-wrap: nowrap; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+.gst-bill-list-card .gst-bill-filter > label { flex: 0 0 auto; }
+.gst-bill-list-card .gst-bill-filter input { min-width: 120px; }
+@media (max-width: 600px) {
+  .gst-bill-filter { align-items: stretch; flex-direction: column; }
+  .gst-bill-filter input { width: auto; }
+}
+
+.bill-filter-option { min-width: 80px; }
+.gst-narrow { width: 80px; }
+
+/* "View options" popover in the bill-view modal header, anchored to its trigger
+   button and opening to the side (right of the trigger) instead of taking up
+   permanent space in the header. */
+.gst-view-options { position: relative; display: inline-flex; }
+.gst-view-options-trigger {
+  width: auto !important;
+  height: auto !important;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #19302a;
+  background: #eef4f1;
+  border: 1px solid #cfe2d8;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.gst-view-options-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #d7e6df;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 40, 30, 0.15);
+}
+.gst-view-options-popup .gst-hsn-toggle { white-space: nowrap; }
+
+/* Narrower fields for short values (GSTIN, bill number, date) so they don't
+   stretch across the whole grid column like the longer text fields do. */
+.gst-compact-input { max-width: 140px; padding: 4px 6px; font-size: 12px; }
+
+/* Customer name, GSTIN, bill number, date, tax type and place of supply — all in one row. */
+.gst-bill-header-row { display: grid; grid-template-columns: minmax(300px, 1fr) 150px 80px 80px 80px 130px; gap: 10px; align-items: end; }
+.gst-bill-remark-row { margin-top: 10px; }
+
+@media (max-width: 1100px) {
+  .gst-bill-header-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .gst-bill-header-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.gst-totals-row { display: grid; grid-template-columns: minmax(320px, 560px) 1fr; gap: 20px; align-items: start; }
+.gst-totals-table { background: #f5faf8; border-radius: 8px; overflow: hidden; }
+.gst-totals-table th, .gst-totals-table td { padding: 8px 12px; text-align: center; }
+.gst-totals-table th { background: #eef4f1; color: #5e706a; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.gst-totals-table td { font-weight: 700; color: #19302a; border-bottom: 0; }
+.gst-totals-table .gst-grand-total-cell { background: #e1f2e9; color: #15593e; font-size: 17px; }
+.gst-totals-side { display: flex; flex-direction: column; gap: 10px; max-width: 260px; }
+.gst-balance-due { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 6px; }
+.gst-balance-due span { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.gst-balance-due strong { font-size: 15px; }
+.gst-balance-due.due { background: #fde8e6; }
+.gst-balance-due.due span, .gst-balance-due.due strong { color: #9e2c25; }
+.gst-balance-due.over { background: #fef3c7; }
+.gst-balance-due.over span, .gst-balance-due.over strong { color: #92400e; }
+.gst-balance-due.settled { background: #e1f2e9; }
+.gst-balance-due.settled span, .gst-balance-due.settled strong { color: #15593e; }
+
+@media (max-width: 700px) {
+  .gst-totals-row { grid-template-columns: 1fr; }
+  .gst-totals-side { max-width: none; }
+  .gst-totals-table { overflow-x: auto; display: block; }
+}
+
+@media (max-width: 900px) {
+  .gst-line-entry { grid-template-columns: 1fr 1fr; }
+}
+
+.gst-form-status { margin: -8px 0 20px; padding: 11px 12px; border-radius: 8px; }
+.gst-form-status.success { color: #15593e; background: #def3e8; }
+.gst-form-status.error { color: #9e2c25; background: #fde8e6; }
+.gst-form-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.gst-form-actions button { padding: 11px 18px; font: inherit; font-weight: 700; border-radius: 8px; cursor: pointer; }
+.gst-primary-button { color: #fff; background: #237553; border: 1px solid #237553; }
+.gst-primary-button:hover:not(:disabled) { background: #185c40; }
+.gst-primary-button:disabled { cursor: wait; opacity: .7; }
+.gst-secondary-button { color: #285749; background: #fff; border: 1px solid #9bb5ac; }
+.gst-secondary-button:hover { background: #f1f7f4; }
+
+/* View/print bill modal */
+.gst-view-overlay { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(9, 28, 22, .5); }
+.gst-view-modal { width: min(680px, 100%); max-height: 88vh; overflow-y: auto; padding: 20px 22px; background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(9, 28, 22, .3); }
+.gst-view-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.gst-view-header h3 { margin: 0; color: #12352c; }
+/* Direct-child combinator so this doesn't also restyle the "View options"
+   trigger button nested one level deeper inside .gst-view-options. */
+.gst-view-header > button { border: 0; background: #eef4f1; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 14px; }
+.gst-view-meta, .gst-view-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.gst-view-meta div, .gst-view-totals div { display: flex; flex-direction: column; padding: 8px 10px; background: #f5f8f6; border-radius: 9px; }
+.gst-view-meta span, .gst-view-totals span { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #6b8079; }
+.gst-view-meta strong, .gst-view-totals strong { color: #1f4b3e; font-size: 14px; }
+.gst-view-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+.gst-view-table th, .gst-view-table td { padding: 7px 9px; border-bottom: 1px solid #e6ede9; text-align: left; }
+.gst-view-table th { background: #f2f2f2; color: #12352c; }
+.gst-view-actions { display: flex; justify-content: flex-end; gap: 10px; align-items: center; }
+.gst-view-actions button { padding: 8px 16px; border: 1px solid #cddbd4; border-radius: 8px; background: #fff; cursor: pointer; font-weight: 600; }
+.gst-view-actions button:first-child { background: #2c7159; border-color: #2c7159; color: #fff; }

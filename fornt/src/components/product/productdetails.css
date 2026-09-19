@@ -1,0 +1,14 @@
+.customer-details-form select, .customer-details-form textarea { box-sizing: border-box; width: 100%; padding: 10px 11px; font: inherit; border: 1px solid #b9ccc5; border-radius: 7px; resize: vertical; }
+.details-field-wide { grid-column: 1 / -1; }
+.entries-heading { margin: 6px 0 10px; font-size: 15px; font-weight: 700; color: #19302a; }
+.no-entries { margin: 0; color: #5e706a; font-size: 14px; }
+.entries-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px; }
+.entry-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 12px; align-items: end; padding: 12px; background: #f5faf8; border-radius: 8px; }
+.entry-row label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.remove-entry-button { height: 42px; padding: 0 12px; color: #a12d27; font: inherit; font-weight: 700; background: #fff; border: 1px solid #e4aaa6; border-radius: 7px; cursor: pointer; }
+.add-entry-button { padding: 9px 14px; color: #1b5d44; font: inherit; font-weight: 700; background: #e1f2e9; border: 1px solid #a9d8bd; border-radius: 7px; cursor: pointer; }
+.product-entries-section { margin-top: 22px; padding-top: 20px; border-top: 1px solid #dce8e4; }
+.product-entries-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.product-entries-table th { padding: 10px 12px; text-align: left; color: #476159; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #f0f7f4; }
+.product-entries-table td { padding: 10px 12px; border-bottom: 1px solid #e2ece8; }
+@media (max-width: 600px) { .entry-row { grid-template-columns: 1fr; } .remove-entry-button { height: auto; padding: 11px 14px; } }

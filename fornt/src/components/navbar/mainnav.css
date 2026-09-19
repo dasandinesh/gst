@@ -1,0 +1,283 @@
+.mainnav {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  align-items: center;
+  min-height: 66px;
+  padding: 0 clamp(18px, 5%, 60px);
+  gap: 24px;
+  background: linear-gradient(120deg, #12352c 0%, #1c4a3c 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 0 6px 24px rgba(9, 28, 22, .22);
+}
+
+.mainnav-logo, .mainnav-user { display: flex; align-items: center; flex: 0 0 auto; }
+.mainnav-logo img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .06);
+  padding: 4px;
+}
+
+.mainnav-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Icon shared by top-level links, dropdown toggles, and dropdown menu items. */
+.nav-icon { flex: 0 0 auto; opacity: .82; transition: opacity .16s ease, transform .16s ease; }
+
+.mainnav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 13px;
+  color: rgba(232, 243, 239, .78);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: color .16s ease, background-color .16s ease;
+}
+.mainnav-link::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: #7fd8b6;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .18s ease;
+}
+.mainnav-link:hover, .mainnav-link:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, .07);
+  outline: none;
+}
+.mainnav-link:hover .nav-icon, .mainnav-link:focus-visible .nav-icon { opacity: 1; }
+.mainnav-link:hover::after, .mainnav-link:focus-visible::after { transform: scaleX(1); }
+
+/* Current route: filled pill + solid icon, no hover underline needed. */
+.mainnav-link.is-active {
+  color: #0c261f;
+  background: #7fd8b6;
+  font-weight: 700;
+}
+.mainnav-link.is-active .nav-icon { opacity: 1; }
+.mainnav-link.is-active::after { content: none; }
+
+/* Master / Accounts dropdown */
+.mainnav-dropdown { position: relative; display: flex; align-items: center; }
+.mainnav-dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  color: rgba(232, 243, 239, .82);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  font-family: inherit;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+}
+.mainnav-dropdown-toggle::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform .2s ease;
+}
+.mainnav-dropdown:hover .mainnav-dropdown-toggle,
+.mainnav-dropdown:focus-within .mainnav-dropdown-toggle {
+  color: #fff;
+  background: #2c7159;
+  border-color: rgba(127, 216, 182, .5);
+}
+.mainnav-dropdown:hover .mainnav-dropdown-toggle .nav-icon,
+.mainnav-dropdown:focus-within .mainnav-dropdown-toggle .nav-icon { opacity: 1; }
+.mainnav-dropdown:hover .mainnav-dropdown-toggle::after,
+.mainnav-dropdown:focus-within .mainnav-dropdown-toggle::after { transform: rotate(225deg) translateY(-1px); }
+
+.mainnav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(18, 53, 44, .1);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(9, 28, 22, .26);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity .16s ease, transform .16s ease, visibility .16s;
+}
+.mainnav-dropdown-menu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 24px;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-left: inherit;
+  border-top: inherit;
+  transform: rotate(45deg);
+}
+.mainnav-dropdown:hover .mainnav-dropdown-menu,
+.mainnav-dropdown:focus-within .mainnav-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.mainnav-dropdown-menu .mainnav-link {
+  padding: 10px 12px;
+  color: #1f4b3e;
+  border-radius: 9px;
+}
+.mainnav-dropdown-menu .mainnav-link .nav-icon { opacity: .65; }
+.mainnav-dropdown-menu .mainnav-link::after { content: none; }
+.mainnav-dropdown-menu .mainnav-link:hover,
+.mainnav-dropdown-menu .mainnav-link:focus-visible {
+  color: #12352c;
+  background: #e6f4ee;
+  outline: none;
+}
+.mainnav-dropdown-menu .mainnav-link:hover .nav-icon,
+.mainnav-dropdown-menu .mainnav-link:focus-visible .nav-icon { opacity: 1; }
+.mainnav-dropdown-menu .mainnav-link.is-active {
+  color: #0c261f;
+  background: #d6f0e4;
+}
+
+.mainnav-user {
+  width: 38px;
+  height: 38px;
+  justify-content: center;
+  overflow: hidden;
+  background: #e1f2e9;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-radius: 50%;
+}
+.mainnav-user img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Hamburger toggler — hidden above the mobile breakpoint (see media query below). */
+.mainnav-toggler {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 38px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .06);
+  cursor: pointer;
+}
+.mainnav-toggler:hover { background: rgba(255, 255, 255, .12); }
+.mainnav-toggler-bar {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: rgba(232, 243, 239, .9);
+  border-radius: 2px;
+  transition: transform .18s ease, opacity .18s ease;
+}
+/* Animates into an "X" when the panel is open, like Bootstrap's collapsed toggler icon. */
+.mainnav-toggler.is-open .mainnav-toggler-bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.mainnav-toggler.is-open .mainnav-toggler-bar:nth-child(2) { opacity: 0; }
+.mainnav-toggler.is-open .mainnav-toggler-bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+@media (max-width: 900px) {
+  .mainnav { align-items: center; flex-wrap: wrap; padding: 12px 18px; gap: 12px; }
+  .mainnav-logo { order: 0; }
+  .mainnav-toggler { display: inline-flex; order: 1; margin-left: auto; }
+  .mainnav-user { order: 2; }
+
+  /* Collapsed by default; the toggler adds/removes .is-open to slide it in. */
+  .mainnav-links {
+    order: 3;
+    flex-basis: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
+  }
+  .mainnav-links.is-open {
+    display: flex;
+    animation: mainnav-collapse-in .18s ease;
+  }
+  @keyframes mainnav-collapse-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .mainnav-link { flex: 0 0 auto; }
+  .mainnav-dropdown { flex: 0 0 auto; flex-direction: column; align-items: stretch; }
+  .mainnav-dropdown-toggle { justify-content: flex-start; border-radius: 8px; }
+  .mainnav-dropdown-toggle::after { margin-left: auto; }
+
+  /* Collapsed by default — the toggle button's onClick adds .is-open on the
+     .mainnav-dropdown wrapper (not on hover, which doesn't exist on touch). */
+  .mainnav-dropdown-menu {
+    position: static;
+    min-width: 0;
+    max-height: 0;
+    padding: 0 0 0 14px;
+    margin: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    overflow: hidden;
+    transition: max-height .2s ease, padding .2s ease;
+  }
+  .mainnav-dropdown.is-open .mainnav-dropdown-menu {
+    max-height: 400px;
+    padding: 4px 0 4px 14px;
+  }
+  .mainnav-dropdown.is-open .mainnav-dropdown-toggle {
+    color: #fff;
+    background: #2c7159;
+  }
+  .mainnav-dropdown.is-open .mainnav-dropdown-toggle::after {
+    transform: rotate(225deg) translateY(-1px);
+  }
+  .mainnav-dropdown-menu::before { content: none; }
+  .mainnav-dropdown-menu .mainnav-link { color: rgba(232, 243, 239, .8); }
+  .mainnav-dropdown-menu .mainnav-link .nav-icon { opacity: .75; }
+  .mainnav-dropdown-menu .mainnav-link:hover,
+  .mainnav-dropdown-menu .mainnav-link:focus-visible { color: #fff; background: rgba(255, 255, 255, .08); }
+  .mainnav-dropdown-menu .mainnav-link.is-active { color: #fff; background: rgba(127, 216, 182, .25); }
+}
