@@ -78,9 +78,10 @@ exports.createOrder = async (req, res) => {
   try {
     const data = prepareOrder(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the order.' });
+    data.businessId = req.auth.businessId;
     // Auto-assign the next bill serial number when the user didn't type one.
     if (!data.bill_details.order_sno) {
-      data.bill_details.order_sno = String(await Counter.next('order'));
+      data.bill_details.order_sno = String(await Counter.next(`${req.auth.businessId}:order`));
     }
     const order = await Order.create(data);
     res.status(201).json(order);
@@ -89,7 +90,7 @@ exports.createOrder = async (req, res) => {
 
 exports.getOrders = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.customer) filter['customer.name'] = { $regex: req.query.customer.trim(), $options: 'i' };
     // Only bills that contain an exact given product line — used by the per-product price editor.
     if (req.query.product && req.query.product.trim()) {
@@ -109,7 +110,7 @@ exports.getOrders = async (req, res) => {
 // price editor so its datalist only offers products someone has actually ordered.
 exports.getOrderedProductNames = async (req, res) => {
   try {
-    const names = await Order.distinct('products.name');
+    const names = await Order.distinct('products.name', { businessId: req.auth.businessId });
     res.json(names.filter(Boolean).sort((a, b) => a.localeCompare(b)));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -117,16 +118,16 @@ exports.getOrderedProductNames = async (req, res) => {
 };
 
 exports.getOrderById = async (req, res) => {
-  try { const order = await Order.findById(req.params.id); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json(order); }
+  try { const order = await Order.findOne({ _id: req.params.id, businessId: req.auth.businessId }); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json(order); }
   catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 exports.updateOrder = async (req, res) => {
-  try { const data = prepareOrder(req.body); if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the order.' }); const order = await Order.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true }); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json(order); }
+  try { const data = prepareOrder(req.body); if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the order.' }); const order = await Order.findOneAndUpdate({ _id: req.params.id, businessId: req.auth.businessId }, data, { new: true, runValidators: true }); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json(order); }
   catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 exports.deleteOrder = async (req, res) => {
-  try { const order = await Order.findByIdAndDelete(req.params.id); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json({ message: 'Order deleted successfully.' }); }
+  try { const order = await Order.findOneAndDelete({ _id: req.params.id, businessId: req.auth.businessId }); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json({ message: 'Order deleted successfully.' }); }
   catch (error) { res.status(400).json({ error: error.message }); }
 };

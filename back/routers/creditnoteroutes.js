@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const creditNoteController = require('../controllers/creditnotecontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 // Look up an original GST bill by number, to pre-fill a new credit note — must come
 // before /:id so "find-original-bill" isn't swallowed by the :id param route.

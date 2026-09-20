@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const vehicleSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   name: {
     type: String, // vehicle name / registration number
     required: [true, 'Vehicle name is required'],

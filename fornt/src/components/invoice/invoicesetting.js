@@ -20,6 +20,13 @@ const InvoiceSetting = () => {
   const [status, setStatus] = useState({ type: '', message: '' });
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({ defaultValues: defaults });
 
+  const [startNumber, setStartNumber] = useState(1);
+  const [numberingStatus, setNumberingStatus] = useState({ type: '', message: '' });
+  const [savingNumbering, setSavingNumbering] = useState(false);
+
+  const [logo, setLogo] = useState('');
+  const [logoError, setLogoError] = useState('');
+
   const current = settings.length === 1 ? settings[0] : null;
 
   const load = useCallback(async () => {
@@ -28,6 +35,8 @@ const InvoiceSetting = () => {
       const data = await fetchJson('/api/invoice-settings');
       setSettings(data);
       reset(data.length === 1 ? { ...defaults, ...data[0] } : defaults);
+      setStartNumber(data.length === 1 ? (data[0].gstBillStartNumber || 1) : 1);
+      setLogo(data.length === 1 ? (data[0].logo || '') : '');
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
@@ -40,24 +49,66 @@ const InvoiceSetting = () => {
   const onSubmit = async (values) => {
     setStatus({ type: '', message: '' });
     try {
+      const body = { ...values, logo };
       if (current) {
         await fetchJson(`/api/invoice-settings/${current._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
+          body: JSON.stringify(body),
         });
         setStatus({ type: 'success', message: 'Invoice setting updated.' });
       } else {
         await fetchJson('/api/invoice-settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
+          body: JSON.stringify(body),
         });
         setStatus({ type: 'success', message: 'Invoice setting created.' });
       }
       load();
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
+    }
+  };
+
+  const MAX_LOGO_BYTES = 1024 * 1024; // 1MB — plenty for a shop logo, keeps the saved document small.
+
+  const handleLogoFile = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // allow re-selecting the same file again later
+    if (!file) return;
+    setLogoError('');
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Please choose an image file.');
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setLogoError('Image is too large — please choose one under 1MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setLogo(reader.result);
+    reader.onerror = () => setLogoError('Could not read that image — please try again.');
+    reader.readAsDataURL(file);
+  };
+
+  const saveNumbering = async (event) => {
+    event.preventDefault();
+    if (!current) return;
+    setNumberingStatus({ type: '', message: '' });
+    setSavingNumbering(true);
+    try {
+      await fetchJson(`/api/invoice-settings/${current._id}/gst-bill-numbering`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startNumber: Number(startNumber) }),
+      });
+      setNumberingStatus({ type: 'success', message: `Saved. The next GST bill will be numbered starting from ${startNumber}.` });
+      load();
+    } catch (error) {
+      setNumberingStatus({ type: 'error', message: error.message });
+    } finally {
+      setSavingNumbering(false);
     }
   };
 
@@ -110,6 +161,7 @@ const InvoiceSetting = () => {
             </div>
           </>
         ) : (
+          <>
           <form className="customer-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <fieldset>
               <legend>Shop details</legend>
@@ -144,6 +196,27 @@ const InvoiceSetting = () => {
               </div>
             </fieldset>
 
+            <fieldset>
+              <legend>Logo</legend>
+              <p>Shown at the top of every printed GST bill's letterhead. Image, under 1MB.</p>
+              <div className="customer-form-grid">
+                <label className="customer-field">
+                  <span>Upload logo</span>
+                  <input type="file" accept="image/*" onChange={handleLogoFile} />
+                  {logoError && <small className="field-error">{logoError}</small>}
+                </label>
+                {logo && (
+                  <div className="customer-field">
+                    <span>Preview</span>
+                    <div>
+                      <img src={logo} alt="Logo preview" style={{ maxHeight: 70, maxWidth: 200, objectFit: 'contain', display: 'block', marginBottom: 6 }} />
+                      <button type="button" className="secondary-button" onClick={() => setLogo('')}>Remove logo</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </fieldset>
+
             {status.message && <p className={`form-status ${status.type}`} role="alert">{status.message}</p>}
 
             <div className="customer-form-actions">
@@ -155,6 +228,42 @@ const InvoiceSetting = () => {
               </button>
             </div>
           </form>
+
+          {current && (
+            <form className="customer-form" onSubmit={saveNumbering} noValidate>
+              <fieldset>
+                <legend>GST bill numbering</legend>
+                <p>
+                  Choose the serial number the next auto-generated GST bill should use — useful when switching over
+                  from paper bills or another system mid-way through. Bills you enter a number for manually are
+                  unaffected.
+                </p>
+                <div className="customer-form-grid">
+                  <label className="customer-field">
+                    <span>Start next GST bill at</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={startNumber}
+                      onChange={(e) => setStartNumber(e.target.value)}
+                    />
+                  </label>
+                </div>
+              </fieldset>
+
+              {numberingStatus.message && (
+                <p className={`form-status ${numberingStatus.type}`} role="alert">{numberingStatus.message}</p>
+              )}
+
+              <div className="customer-form-actions">
+                <button type="submit" className="primary-button" disabled={savingNumbering}>
+                  {savingNumbering ? 'Saving…' : 'Save numbering'}
+                </button>
+              </div>
+            </form>
+          )}
+          </>
         )}
       </section>
     </main>

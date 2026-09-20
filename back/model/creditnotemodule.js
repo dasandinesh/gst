@@ -38,7 +38,7 @@ const originalBillSchema = new mongoose.Schema({
 const CREDIT_NOTE_REASONS = ['Sales Return', 'Post-Sale Discount', 'Deficiency in Goods/Services', 'Change in Place of Supply', 'Correction of Invoice', 'Other'];
 
 const creditNoteBillDetailsSchema = new mongoose.Schema({
-  creditNoteNumber: { type: String, unique: true },
+  creditNoteNumber: { type: String },
   date: { type: Date, required: true },
   taxType: { type: String, enum: ['CGST_SGST', 'IGST'], default: 'CGST_SGST' },
   placeOfSupply: { type: String, default: '' },
@@ -56,6 +56,7 @@ const creditNoteBillDetailsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const creditNoteSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   originalBill: originalBillSchema,
   customer: {
     name: { type: String, required: true },
@@ -67,6 +68,8 @@ const creditNoteSchema = new mongoose.Schema({
   gstTotals: { type: Map, of: creditNoteRateTotalsSchema },
   bill_details: creditNoteBillDetailsSchema
 }, { timestamps: true });
+
+creditNoteSchema.index({ businessId: 1, 'bill_details.creditNoteNumber': 1 }, { unique: true });
 
 const CreditNoteModel = mongoose.model('CreditNote', creditNoteSchema);
 CreditNoteModel.creditNoteSchema = creditNoteSchema;

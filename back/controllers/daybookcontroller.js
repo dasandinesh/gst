@@ -16,13 +16,13 @@ exports.getDayBook = async (req, res) => {
   try {
     const start = req.query.startDate ? new Date(`${req.query.startDate}T00:00:00.000`) : null;
     const end = req.query.endDate ? new Date(`${req.query.endDate}T23:59:59.999`) : null;
-    const billFilter = {};
+    const billFilter = { businessId: req.auth.businessId };
     if (start || end) {
       billFilter['bill_details.date'] = {};
       if (start) billFilter['bill_details.date'].$gte = start;
       if (end) billFilter['bill_details.date'].$lte = end;
     }
-    const plainFilter = {};
+    const plainFilter = { businessId: req.auth.businessId };
     if (start || end) {
       plainFilter.date = {};
       if (start) plainFilter.date.$gte = start;

@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const debitNoteController = require('../controllers/debitnotecontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 // Look up an original purchase bill by number, to pre-fill a new debit note — must
 // come before /:id so "find-original-bill" isn't swallowed by the :id param route.

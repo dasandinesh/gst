@@ -7,7 +7,8 @@ const connectDatabase = require('./config/database');
 
 const cookieParser = require('cookie-parser');
 const app = express();
-const custumerrouter = require('./routers/customerrouters'); 
+const authrouter = require('./routers/authroutes');
+const custumerrouter = require('./routers/customerrouters');
 const productrouter = require('./routers/productroutes');
 const orderrouter = require('./routers/orderroutes');
 const salerouter = require('./routers/saleroutes');
@@ -44,7 +45,10 @@ app.use(
   })
 );
 app.use(cookieParser());
-app.use(express.json());
+// Default 100kb is too small once the invoice-setting logo (a base64 data
+// URI) is included in the request body.
+app.use(express.json({ limit: '5mb' }));
+app.use('/api/auth', authrouter);
 app.use('/api/customers', custumerrouter);
 app.use('/api/products', productrouter);
 app.use('/api/orders', orderrouter);

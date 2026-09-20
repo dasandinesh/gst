@@ -29,7 +29,7 @@ const gstRateTotalsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const gstBillDetailsSchema = new mongoose.Schema({
-  billNumber: { type: String, unique: true },
+  billNumber: { type: String },
   date: { type: Date, required: true },
   taxType: { type: String, enum: ['CGST_SGST', 'IGST'], default: 'CGST_SGST' },
   placeOfSupply: { type: String, default: '' },
@@ -48,6 +48,7 @@ const gstBillDetailsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const gstSaleSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   customer: {
     name: { type: String, required: true },
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
@@ -59,6 +60,8 @@ const gstSaleSchema = new mongoose.Schema({
   gstTotals: { type: Map, of: gstRateTotalsSchema },
   bill_details: gstBillDetailsSchema
 }, { timestamps: true });
+
+gstSaleSchema.index({ businessId: 1, 'bill_details.billNumber': 1 }, { unique: true });
 
 const GstSaleModel = mongoose.model('GstSale', gstSaleSchema);
 GstSaleModel.gstSaleSchema = gstSaleSchema;

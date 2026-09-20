@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import NavIcon from './navicons';
+import { useAuth } from '../../authContext';
+import { fetchJson } from '../../api';
 import './mainnav.css';
 
 const DASHBOARD_LINK = { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' };
 
+// GST Billing/Purchases/Stock, grouped into one dropdown — same pattern as
+// Master/Notes/Accounts/Reports — instead of five flat top-level links.
 const NAV_LINKS = [
   // { to: '/order-entry', label: 'Orders', icon: 'cart' },
   // { to: '/order-entry-mobile', label: 'Orders (Mobile)', icon: 'cart' },
@@ -94,6 +98,20 @@ const MainNav = () => {
   // Which submenu (Master/Accounts) is expanded on mobile — null means both collapsed.
   const [openDropdown, setOpenDropdown] = useState(null);
   const navRef = useRef(null);
+  const { session, logout } = useAuth();
+  const navigate = useNavigate();
+  // Business's uploaded letterhead logo (Invoice Setting page) replaces the
+  // static placeholder image once one is set.
+  const [logo, setLogo] = useState('');
+
+  useEffect(() => {
+    fetchJson('/api/invoice-settings/active').then((s) => setLogo(s.logo || '')).catch(() => setLogo(''));
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   const close = () => {
     setOpen(false);
@@ -118,9 +136,9 @@ const MainNav = () => {
 
   return (
     <nav className="mainnav" aria-label="Main navigation" ref={navRef}>
-      <div className="mainnav-logo">
-        <img src="/images/logo.png" alt="Logo" />
-      </div>
+      {/* <div className="mainnav-logo">
+        {logo ? <img src={logo} alt="Logo" /> : null}
+      </div> */}
 
       <button
         type="button"
@@ -140,20 +158,23 @@ const MainNav = () => {
           <NavIcon name={DASHBOARD_LINK.icon} />
           <span>{DASHBOARD_LINK.label}</span>
         </NavLink>
-        <NavDropdown id="master" label="Master" icon="layers" links={MASTER_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
-        {NAV_LINKS.map((link) => (
-          <NavLink key={link.to} to={link.to} className={linkClass} onClick={close}>
-            <NavIcon name={link.icon} />
-            <span>{link.label}</span>
-          </NavLink>
-        ))}
+        <NavDropdown id="transactions" label="Transactions" icon="tag" links={NAV_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
         <NavDropdown id="notes" label="Notes" icon="fileText" links={NOTES_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
         <NavDropdown id="accounts" label="Accounts" icon="wallet" links={ACCOUNT_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
         <NavDropdown id="reports" label="Reports" icon="clipboard" links={REPORT_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
+        <NavDropdown id="master" label="Master" icon="layers" links={MASTER_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
+
       </div>
 
       <div className="mainnav-user">
-        <img src="/images/user.png" alt="User" />
+        {/* <span className="mainnav-user-avatar"><img src="/images/user.png" alt="User" /></span> */}
+        {session && (
+          <div className="mainnav-user-info">
+            <span className="mainnav-business-name">{session.business.name}</span>
+            <span className="mainnav-user-name">{session.user.name}</span>
+          </div>
+        )}
+        <button type="button" className="mainnav-logout" onClick={handleLogout}>Log out</button>
       </div>
     </nav>
   );

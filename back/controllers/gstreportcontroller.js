@@ -7,7 +7,7 @@ const num = (v) => Number(v) || 0;
 const round2 = (v) => Math.round((num(v)) * 100) / 100;
 
 const dateFilter = (req) => {
-  const filter = {};
+  const filter = { businessId: req.auth.businessId };
   if (req.query.startDate || req.query.endDate) {
     filter['bill_details.date'] = {};
     if (req.query.startDate) filter['bill_details.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);

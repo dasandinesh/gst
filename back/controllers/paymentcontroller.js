@@ -7,9 +7,9 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Adjust a supplier's running payable balance (suppliermodule `oldBalance`) by `delta`.
 // A payment reduces the balance, i.e. pass a negative delta.
-const applySupplierBalance = async (name, delta) => {
+const applySupplierBalance = async (businessId, name, delta) => {
   if (!name || !delta) return;
-  const s = await Supplier.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
+  const s = await Supplier.findOne({ businessId, name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
   if (!s) return;
   s.oldBalance = number(s.oldBalance) + delta;
   await s.save();
@@ -28,12 +28,14 @@ exports.createPayment = async (req, res) => {
     const data = prepare(req.body);
     if (!data.supplier.name) return res.status(400).json({ error: 'Supplier name is required.' });
     if (!data.amount || data.amount <= 0) return res.status(400).json({ error: 'Enter an amount greater than zero.' });
+    const businessId = req.auth.businessId;
+    data.businessId = businessId;
     // Auto payment number when the user didn't type one.
     data.payment_no = req.body.payment_no
       ? String(req.body.payment_no).trim()
-      : String(await Counter.next('payment'));
+      : String(await Counter.next(`${businessId}:payment`));
     const payment = await Payment.create(data);
-    await applySupplierBalance(data.supplier.name, -data.amount); // payment made reduces balance owed
+    await applySupplierBalance(businessId, data.supplier.name, -data.amount); // payment made reduces balance owed
     res.status(201).json(payment);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -42,7 +44,7 @@ exports.createPayment = async (req, res) => {
 
 exports.getPayments = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.supplier) filter['supplier.name'] = { $regex: req.query.supplier.trim(), $options: 'i' };
     if (req.query.startDate || req.query.endDate) {
       filter.date = {};
@@ -57,7 +59,7 @@ exports.getPayments = async (req, res) => {
 
 exports.getPaymentById = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id);
+    const payment = await Payment.findOne({ _id: req.params.id, businessId: req.auth.businessId });
     if (!payment) return res.status(404).json({ error: 'Payment not found.' });
     res.json(payment);
   } catch (error) {
@@ -71,11 +73,12 @@ exports.updatePayment = async (req, res) => {
     if (!data.supplier.name) return res.status(400).json({ error: 'Supplier name is required.' });
     if (!data.amount || data.amount <= 0) return res.status(400).json({ error: 'Enter an amount greater than zero.' });
     if (req.body.payment_no) data.payment_no = String(req.body.payment_no).trim();
-    const prev = await Payment.findById(req.params.id);
+    const businessId = req.auth.businessId;
+    const prev = await Payment.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Payment not found.' });
-    await applySupplierBalance(prev.supplier?.name, number(prev.amount));  // undo old debit
-    await applySupplierBalance(data.supplier.name, -data.amount);          // apply new debit
-    const payment = await Payment.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+    await applySupplierBalance(businessId, prev.supplier?.name, number(prev.amount));  // undo old debit
+    await applySupplierBalance(businessId, data.supplier.name, -data.amount);          // apply new debit
+    const payment = await Payment.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(payment);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -84,9 +87,10 @@ exports.updatePayment = async (req, res) => {
 
 exports.deletePayment = async (req, res) => {
   try {
-    const payment = await Payment.findByIdAndDelete(req.params.id);
+    const businessId = req.auth.businessId;
+    const payment = await Payment.findOneAndDelete({ _id: req.params.id, businessId });
     if (!payment) return res.status(404).json({ error: 'Payment not found.' });
-    await applySupplierBalance(payment.supplier?.name, number(payment.amount)); // undo its debit
+    await applySupplierBalance(businessId, payment.supplier?.name, number(payment.amount)); // undo its debit
     res.json({ message: 'Payment deleted successfully.' });
   } catch (error) {
     res.status(500).json({ error: error.message });

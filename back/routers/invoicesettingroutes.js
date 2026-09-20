@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const invoiceSettingController = require('../controllers/invoicesettingcontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 // Create a new invoice setting (only if none exists)
 router.post('/', invoiceSettingController.createInvoiceSetting);
@@ -16,6 +19,9 @@ router.get('/:id', invoiceSettingController.getInvoiceSettingById);
 
 // Mark an invoice setting as the default (used when more than one exists)
 router.put('/:id/set-default', invoiceSettingController.setDefaultInvoiceSetting);
+
+// Set the serial number the next auto-generated GST bill should start from
+router.put('/:id/gst-bill-numbering', invoiceSettingController.setGstBillStartNumber);
 
 // Update an invoice setting by ID
 router.put('/:id', invoiceSettingController.updateInvoiceSetting);

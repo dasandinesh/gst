@@ -29,7 +29,7 @@ const purchaseRateTotalsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const purchaseBillDetailsSchema = new mongoose.Schema({
-  billNumber: { type: String, unique: true },
+  billNumber: { type: String },
   supplierBillNumber: { type: String, default: '' }, // the supplier's own invoice number, if different
   date: { type: Date, required: true },
   taxType: { type: String, enum: ['CGST_SGST', 'IGST'], default: 'CGST_SGST' },
@@ -49,6 +49,7 @@ const purchaseBillDetailsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const purchaseSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   supplier: {
     name: { type: String, required: true },
     supplierId: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier' },
@@ -60,6 +61,8 @@ const purchaseSchema = new mongoose.Schema({
   gstTotals: { type: Map, of: purchaseRateTotalsSchema },
   bill_details: purchaseBillDetailsSchema
 }, { timestamps: true });
+
+purchaseSchema.index({ businessId: 1, 'bill_details.billNumber': 1 }, { unique: true });
 
 const PurchaseModel = mongoose.model('Purchase', purchaseSchema);
 PurchaseModel.purchaseSchema = purchaseSchema;

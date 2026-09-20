@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const vehicleController = require('../controllers/vehiclecontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 // Create a new vehicle
 router.post('/', vehicleController.createVehicle);

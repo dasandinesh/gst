@@ -18,6 +18,7 @@ const productLineSchema = new mongoose.Schema({
 }, { _id: true });
 
 const orderSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   customer: {
     name: { type: String, required: [true, 'Customer name is required'], trim: true },
   },

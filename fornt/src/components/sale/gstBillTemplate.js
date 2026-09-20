@@ -86,6 +86,13 @@ const GST_STYLE = `
 
   .letterhead { text-align: center; padding: 10px 12px 8px; }
   .letterhead .company-name { font-size: 1.6em; }
+  /* Logo pinned left, matching spacer pinned right, so the text block in
+     between stays truly centered on the page instead of centered next to
+     the logo. */
+  .letterhead-row { display: flex; align-items: center; gap: 10px; }
+  .letterhead-logo, .letterhead-logo-spacer { flex: 0 0 110px; }
+  .letterhead-logo { max-height: 60px; max-width: 110px; object-fit: contain; }
+  .letterhead-text { flex: 1; text-align: center; }
 
   .title-bar { text-align: center; padding: 6px 12px; font-size: 1.2em; font-weight: 700; }
 
@@ -109,13 +116,13 @@ const GST_STYLE = `
 
   .section-title { font-weight: 700; margin-bottom: 2px; }
   .k { font-weight: 700; width: 42%; }
-  .eoe { text-align: right; font-weight: 400; }
 
   .items-table { flex: 1 0 auto; height: 100%; }
   .items-table td { text-align: right; }
   .items-table td.l, .items-table th.l { text-align: left; }
   .items-table td.c, .items-table th.c { text-align: center; }
   .items-table td.tax-label { font-style: italic; }
+  .items-table tr.tax-summary-row td { font-size: 0.85em; }
   .total-row td { font-weight: bold; }
   .spacer-row td { height: 100%; border-top: none; border-bottom: none; }
 
@@ -134,7 +141,7 @@ const GST_STYLE = `
 
   .thankyou { text-align: center; padding: 6px; font-size: .9em; }
   .footnote { text-align: center; padding: 0 6px 8px; font-size: .85em; }
-  .header-style{ height:50px}
+  .header-style{ height:40px}
 `;
 
 // One bill's printable layout. `shop` is the active invoice setting
@@ -167,10 +174,25 @@ export function GstBillDocument({ bill, shop = {}, customer = null, showHsnSumma
 
       {/* Header Block */}
       <div className="letterhead">
-        <div className="company-name">{shop.name || 'Tax Invoice'}</div>
-        {shop.header ? <div className="company-banner">{shop.header}</div> : null}
-        <div>{shopAddress}</div>
-        <div>GSTIN/UIN: {shop.gstin || '—'} &nbsp; State Name : {shop.state || '—'} &nbsp; Contact : {shopPhones}</div>
+        {shop.logo ? (
+          <div className="letterhead-row">
+            <img src={shop.logo} alt="" className="letterhead-logo" />
+            <div className="letterhead-text">
+              <div className="company-name">{shop.name || 'Tax Invoice'}</div>
+              {shop.header ? <div className="company-banner">{shop.header}</div> : null}
+              <div>{shopAddress}</div>
+              <div>GSTIN/UIN: {shop.gstin || '—'} &nbsp; State Name : {shop.state || '—'} &nbsp; Contact : {shopPhones}</div>
+            </div>
+            <div className="letterhead-logo-spacer" aria-hidden="true" />
+          </div>
+        ) : (
+          <div className="letterhead-text">
+            <div className="company-name">{shop.name || 'Tax Invoice'}</div>
+            {shop.header ? <div className="company-banner">{shop.header}</div> : null}
+            <div>{shopAddress}</div>
+            <div>GSTIN/UIN: {shop.gstin || '—'} &nbsp; State Name : {shop.state || '—'} &nbsp; Contact : {shopPhones}</div>
+          </div>
+        )}
       </div>
       <div className="title-bar">Tax Invoice</div>
 
@@ -222,16 +244,17 @@ export function GstBillDocument({ bill, shop = {}, customer = null, showHsnSumma
             </tr>
           ))}
           {isIgst
-            ? (Number(b.totalIgst) ? <tr><td colSpan="6" className="c tax-label">OUTPUT IGST</td><td>{money(b.totalIgst)}</td></tr> : null)
+            ? (Number(b.totalIgst) ? <tr className="tax-summary-row"><td colSpan="6" className="c tax-label">OUTPUT IGST</td><td>{money(b.totalIgst)}</td></tr> : null)
             : (
               <>
-                {Number(b.totalCgst) ? <tr><td colSpan="6" className="c tax-label">OUTPUT CGST</td><td>{money(b.totalCgst)}</td></tr> : null}
-                {Number(b.totalSgst) ? <tr><td colSpan="6" className="c tax-label">OUTPUT SGST</td><td>{money(b.totalSgst)}</td></tr> : null}
+                {Number(b.totalCgst) ? <tr className="tax-summary-row"><td colSpan="6" className="c tax-label">OUTPUT CGST</td><td>{money(b.totalCgst)}</td></tr> : null}
+                {Number(b.totalSgst) ? <tr className="tax-summary-row"><td colSpan="6" className="c tax-label">OUTPUT SGST</td><td>{money(b.totalSgst)}</td></tr> : null}
               </>
             )}
           <tr className="spacer-row"><td colSpan="7"></td></tr>
         </tbody>
         <tfoot>
+          <tr><td colSpan="6" className="l">Sub Total</td><td>{money(b.subtotal)}</td></tr>
           {b.roundOff ? <tr><td colSpan="6" className="l">Round Off</td><td>{money(b.roundOff)}</td></tr> : null}
           <tr className="total-row"><td colSpan="3" className="l">Total</td><td className="c">{totalQty} {products[0]?.unit || ''}</td><td></td><td></td><td>{money(b.billAmount)}</td></tr>
         </tfoot>
@@ -241,8 +264,7 @@ export function GstBillDocument({ bill, shop = {}, customer = null, showHsnSumma
       <table className="layout-table words-table">
         <tbody>
           <tr>
-            <td className="words-label">Amount Chargeable (in words)</td>
-            <td className="eoe">E. &amp; O.E</td>
+            <td colSpan="2" className="words-label">Amount Chargeable (in words)</td>
           </tr>
           <tr><td colSpan="2" className="words-value">Indian Rupee {numberToWordsIndian(b.billAmount)} Only</td></tr>
         </tbody>

@@ -3,7 +3,7 @@ const Driver = require('../model/drivermodule');
 // Create a new driver
 exports.createDriver = async (req, res) => {
     try {
-        const driver = new Driver({ ...req.body });
+        const driver = new Driver({ ...req.body, businessId: req.auth.businessId });
         await driver.save();
         res.status(201).json(driver);
     } catch (error) {
@@ -14,7 +14,7 @@ exports.createDriver = async (req, res) => {
 // Get all drivers
 exports.getDrivers = async (req, res) => {
     try {
-        const drivers = await Driver.find().sort({ name: 1 });
+        const drivers = await Driver.find({ businessId: req.auth.businessId }).sort({ name: 1 });
         res.status(200).json(drivers);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -24,7 +24,7 @@ exports.getDrivers = async (req, res) => {
 // Get a driver by ID
 exports.getDriverById = async (req, res) => {
     try {
-        const driver = await Driver.findOne({ _id: req.params.id });
+        const driver = await Driver.findOne({ _id: req.params.id, businessId: req.auth.businessId });
         if (!driver) {
             return res.status(404).json({ error: 'Driver not found' });
         }
@@ -38,7 +38,7 @@ exports.getDriverById = async (req, res) => {
 exports.updateDriver = async (req, res) => {
     try {
         const driver = await Driver.findOneAndUpdate(
-            { _id: req.params.id },
+            { _id: req.params.id, businessId: req.auth.businessId },
             req.body,
             { new: true, runValidators: true }
         );
@@ -54,7 +54,7 @@ exports.updateDriver = async (req, res) => {
 // Delete a driver by ID
 exports.deleteDriver = async (req, res) => {
     try {
-        const driver = await Driver.findOneAndDelete({ _id: req.params.id });
+        const driver = await Driver.findOneAndDelete({ _id: req.params.id, businessId: req.auth.businessId });
         if (!driver) {
             return res.status(404).json({ error: 'Driver not found' });
         }

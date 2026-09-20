@@ -11,9 +11,9 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // How much a purchase moves the supplier's running payable balance: total owed minus what was paid on it.
 const purchaseImpact = (bill = {}) => number(bill.billAmount) - number(bill.cash) - number(bill.credit);
 
-const applySupplierBalance = async (name, delta) => {
+const applySupplierBalance = async (businessId, name, delta) => {
   if (!name) return { before: 0, after: 0 };
-  const s = await Supplier.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
+  const s = await Supplier.findOne({ businessId, name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
   if (!s) return { before: 0, after: 0 };
   const before = number(s.oldBalance);
   const after = before + number(delta);
@@ -24,12 +24,12 @@ const applySupplierBalance = async (name, delta) => {
 // Purchases add stock, matched to the product master by exact (case-insensitive) name —
 // same best-effort matching applyCustomerBalance/applySupplierBalance use for parties.
 // sign is +1 to add stock in (create) or -1 to reverse it (delete/update/undo).
-const applyStock = async (products = [], sign = 1) => {
+const applyStock = async (businessId, products = [], sign = 1) => {
   await Promise.all(products.map((p) => {
     const qty = number(p.quantity);
     if (!p.name || !qty) return null;
     return Product.updateOne(
-      { name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
+      { businessId, name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
       { $inc: { StockQunity: sign * qty } }
     );
   }));
@@ -131,15 +131,17 @@ exports.createPurchase = async (req, res) => {
   try {
     const data = preparePurchase(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
+    const businessId = req.auth.businessId;
+    data.businessId = businessId;
     if (!data.bill_details.billNumber) {
       const fy = financialYearLabel(data.bill_details.date);
-      const seq = await Counter.next(`purchase:${fy}`);
+      const seq = await Counter.next(`${businessId}:purchase:${fy}`);
       data.bill_details.billNumber = `PB/${fy}/${String(seq).padStart(4, '0')}`;
     }
-    const bal = await applySupplierBalance(data.supplier.name, purchaseImpact(data.bill_details));
+    const bal = await applySupplierBalance(businessId, data.supplier.name, purchaseImpact(data.bill_details));
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
-    await applyStock(data.products, 1);
+    await applyStock(businessId, data.products, 1);
     const purchase = await Purchase.create(data);
     res.status(201).json(purchase);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -147,7 +149,7 @@ exports.createPurchase = async (req, res) => {
 
 exports.getPurchases = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.q && req.query.q.trim()) {
       const rx = { $regex: escapeRegex(req.query.q.trim()), $options: 'i' };
       filter.$or = [{ 'supplier.name': rx }, { 'bill_details.billNumber': rx }];
@@ -180,7 +182,7 @@ exports.getPurchases = async (req, res) => {
 
 exports.getPurchaseById = async (req, res) => {
   try {
-    const purchase = await Purchase.findById(req.params.id);
+    const purchase = await Purchase.findOne({ _id: req.params.id, businessId: req.auth.businessId });
     if (!purchase) return res.status(404).json({ error: 'Purchase bill not found.' });
     res.json(purchase);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -190,28 +192,30 @@ exports.updatePurchase = async (req, res) => {
   try {
     const data = preparePurchase(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
-    const prev = await Purchase.findById(req.params.id);
+    const businessId = req.auth.businessId;
+    const prev = await Purchase.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Purchase bill not found.' });
 
-    await applySupplierBalance(prev.supplier?.name, -purchaseImpact(prev.bill_details));
-    await applyStock(prev.products, -1);
-    const bal = await applySupplierBalance(data.supplier.name, purchaseImpact(data.bill_details));
-    await applyStock(data.products, 1);
+    await applySupplierBalance(businessId, prev.supplier?.name, -purchaseImpact(prev.bill_details));
+    await applyStock(businessId, prev.products, -1);
+    const bal = await applySupplierBalance(businessId, data.supplier.name, purchaseImpact(data.bill_details));
+    await applyStock(businessId, data.products, 1);
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
     data.bill_details.billNumber = prev.bill_details?.billNumber || data.bill_details.billNumber;
 
-    const purchase = await Purchase.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+    const purchase = await Purchase.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(purchase);
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 exports.deletePurchase = async (req, res) => {
   try {
-    const purchase = await Purchase.findByIdAndDelete(req.params.id);
+    const businessId = req.auth.businessId;
+    const purchase = await Purchase.findOneAndDelete({ _id: req.params.id, businessId });
     if (!purchase) return res.status(404).json({ error: 'Purchase bill not found.' });
-    await applySupplierBalance(purchase.supplier?.name, -purchaseImpact(purchase.bill_details));
-    await applyStock(purchase.products, -1);
+    await applySupplierBalance(businessId, purchase.supplier?.name, -purchaseImpact(purchase.bill_details));
+    await applyStock(businessId, purchase.products, -1);
     res.json({ message: 'Purchase bill deleted successfully.' });
   } catch (error) { res.status(400).json({ error: error.message }); }
 };

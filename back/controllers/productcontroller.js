@@ -27,7 +27,7 @@ const mapProductBody = (body) => ({
 
 exports.createProduct = async (req, res) => {
     try {
-        const productData = mapProductBody(req.body || {});
+        const productData = { ...mapProductBody(req.body || {}), businessId: req.auth.businessId };
         const product = new ProductModel(productData);
         await product.save();
         res.status(201).json(product);
@@ -39,7 +39,7 @@ exports.createProduct = async (req, res) => {
 // Get all products
 exports.getProducts = async (req, res) => {
     try {
-        const products = await ProductModel.find().sort({ name: 1 });
+        const products = await ProductModel.find({ businessId: req.auth.businessId }).sort({ name: 1 });
         res.status(200).json(products);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -49,7 +49,7 @@ exports.getProducts = async (req, res) => {
 // Get a product by ID
 exports.getProductById = async (req, res) => {
     try {
-        const product = await ProductModel.findById(req.params.id);
+        const product = await ProductModel.findOne({ _id: req.params.id, businessId: req.auth.businessId });
         if (!product) {
             return res.status(404).json({ error: 'Product not found' });
         }
@@ -66,8 +66,8 @@ exports.updateProduct = async (req, res) => {
         // Remove undefined keys so they don't overwrite existing values
         Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
 
-        const product = await ProductModel.findByIdAndUpdate(
-            req.params.id,
+        const product = await ProductModel.findOneAndUpdate(
+            { _id: req.params.id, businessId: req.auth.businessId },
             update,
             { new: true, runValidators: true }
         );
@@ -87,7 +87,7 @@ exports.adjustStock = async (req, res) => {
     try {
         const delta = Number(req.body.delta);
         if (!delta) return res.status(400).json({ error: 'A non-zero delta is required.' });
-        const product = await ProductModel.findById(req.params.id);
+        const product = await ProductModel.findOne({ _id: req.params.id, businessId: req.auth.businessId });
         if (!product) return res.status(404).json({ error: 'Product not found' });
         const next = Number(product.StockQunity || 0) + delta;
         if (next < 0) return res.status(400).json({ error: 'Stock cannot go below zero.' });
@@ -102,7 +102,7 @@ exports.adjustStock = async (req, res) => {
 // Delete a product by ID
 exports.deleteProduct = async (req, res) => {
     try {
-        const product = await ProductModel.findByIdAndDelete(req.params.id);
+        const product = await ProductModel.findOneAndDelete({ _id: req.params.id, businessId: req.auth.businessId });
         if (!product) {
             return res.status(404).json({ error: 'Product not found' });
         }

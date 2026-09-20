@@ -32,7 +32,7 @@ const gstRateTotalsSchema = new mongoose.Schema({
 
 
 const billDetailsSchema = new mongoose.Schema({
-    bill_number: { type: String, unique: true },
+    bill_number: { type: String },
     date: { type: String, required: true },
     bill_date: { type: String, required: true },
     total_quantity: { type: String },
@@ -57,10 +57,16 @@ const billDetailsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const SaleSchema = new mongoose.Schema({
-    userId: { 
-        type: mongoose.Schema.Types.ObjectId, 
+    businessId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Business',
+        required: true,
+        index: true
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true 
+        required: true
     },
     customer: {
         name: { type: String, required: true },
@@ -70,11 +76,14 @@ const SaleSchema = new mongoose.Schema({
     bill_details: billDetailsSchema
 }, { timestamps: true });
 
-// Auto-increment bill number
+SaleSchema.index({ businessId: 1, 'bill_details.bill_number': 1 }, { unique: true });
+
+// Auto-increment bill number, scoped to this sale's own business so each
+// business's bill numbers start from SB-0001 independently.
 SaleSchema.pre('save', async function(next) {
     if (this.isNew && !this.bill_details.bill_number) {
         try {
-            const lastSale = await this.constructor.findOne({}, {}, { sort: { 'createdAt': -1 } });
+            const lastSale = await this.constructor.findOne({ businessId: this.businessId }, {}, { sort: { 'createdAt': -1 } });
             let billNumber = 1;
             
             if (lastSale && lastSale.bill_details.bill_number) {

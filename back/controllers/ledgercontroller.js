@@ -18,13 +18,14 @@ exports.getCustomerLedger = async (req, res) => {
     const name = (req.query.customer || '').trim();
     if (!name) return res.status(400).json({ error: 'A customer name is required.' });
 
+    const businessId = req.auth.businessId;
     const exact = new RegExp(`^${escapeRegex(name)}$`, 'i');
     const [customer, sales, gstSales, creditNotes, receipts] = await Promise.all([
-      Customer.findOne({ name: exact }),
-      Sale.find({ 'customer.name': exact }),
-      GstSale.find({ 'customer.name': exact }),
-      CreditNote.find({ 'customer.name': exact }),
-      Receipt.find({ 'customer.name': exact }),
+      Customer.findOne({ businessId, name: exact }),
+      Sale.find({ businessId, 'customer.name': exact }),
+      GstSale.find({ businessId, 'customer.name': exact }),
+      CreditNote.find({ businessId, 'customer.name': exact }),
+      Receipt.find({ businessId, 'customer.name': exact }),
     ]);
 
     // Build every ledger line (unfiltered), then split by the requested range.
@@ -130,12 +131,13 @@ exports.getSupplierLedger = async (req, res) => {
     const name = (req.query.supplier || '').trim();
     if (!name) return res.status(400).json({ error: 'A supplier name is required.' });
 
+    const businessId = req.auth.businessId;
     const exact = new RegExp(`^${escapeRegex(name)}$`, 'i');
     const [supplier, purchases, debitNotes, payments] = await Promise.all([
-      Supplier.findOne({ name: exact }),
-      Purchase.find({ 'supplier.name': exact }),
-      DebitNote.find({ 'supplier.name': exact }),
-      Payment.find({ 'supplier.name': exact }),
+      Supplier.findOne({ businessId, name: exact }),
+      Purchase.find({ businessId, 'supplier.name': exact }),
+      DebitNote.find({ businessId, 'supplier.name': exact }),
+      Payment.find({ businessId, 'supplier.name': exact }),
     ]);
 
     // Every source here posts to the same supplier.oldBalance (see applySupplierBalance

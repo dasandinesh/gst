@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 // A payment voucher — money received from a customer. Posts to the customer
 // ledger as a credit (reduces what they owe).
 const receiptSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   receipt_no: { type: String, trim: true, default: '' },
   date: { type: Date, default: Date.now },
   customer: {

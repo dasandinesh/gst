@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const customerController = require('../controllers/customercontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 
 // Create a new customer

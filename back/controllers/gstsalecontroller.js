@@ -11,9 +11,9 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // How much a bill moves the customer's running balance: total owed minus what was paid on it.
 const saleImpact = (bill = {}) => number(bill.billAmount) - number(bill.cash) - number(bill.credit);
 
-const applyCustomerBalance = async (name, delta) => {
+const applyCustomerBalance = async (businessId, name, delta) => {
   if (!name) return { before: 0, after: 0 };
-  const c = await Customer.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
+  const c = await Customer.findOne({ businessId, name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
   if (!c) return { before: 0, after: 0 };
   const before = number(c.oldBalance);
   const after = before + number(delta);
@@ -24,12 +24,12 @@ const applyCustomerBalance = async (name, delta) => {
 // Sales draw down stock, matched to the product master by exact (case-insensitive)
 // name — same best-effort matching applyCustomerBalance uses for the customer.
 // sign is -1 to remove stock (create) or +1 to reverse it.
-const applyStock = async (products = [], sign = -1) => {
+const applyStock = async (businessId, products = [], sign = -1) => {
   await Promise.all(products.map((p) => {
     const qty = number(p.quantity);
     if (!p.name || !qty) return null;
     return Product.updateOne(
-      { name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
+      { businessId, name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
       { $inc: { StockQunity: sign * qty } }
     );
   }));
@@ -130,15 +130,17 @@ exports.createGstSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
+    const businessId = req.auth.businessId;
+    data.businessId = businessId;
     if (!data.bill_details.billNumber) {
       const fy = financialYearLabel(data.bill_details.date);
-      const seq = await Counter.next(`gstsale:${fy}`);
+      const seq = await Counter.next(`${businessId}:gstsale:${fy}`);
       data.bill_details.billNumber = `GB/${fy}/${String(seq).padStart(4, '0')}`;
     }
-    const bal = await applyCustomerBalance(data.customer.name, saleImpact(data.bill_details));
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
-    await applyStock(data.products, -1);
+    await applyStock(businessId, data.products, -1);
     const sale = await GstSale.create(data);
     res.status(201).json(sale);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -146,7 +148,7 @@ exports.createGstSale = async (req, res) => {
 
 exports.getGstSales = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.q && req.query.q.trim()) {
       const rx = { $regex: escapeRegex(req.query.q.trim()), $options: 'i' };
       filter.$or = [{ 'customer.name': rx }, { 'bill_details.billNumber': rx }];
@@ -179,7 +181,7 @@ exports.getGstSales = async (req, res) => {
 
 exports.getGstSaleById = async (req, res) => {
   try {
-    const sale = await GstSale.findById(req.params.id);
+    const sale = await GstSale.findOne({ _id: req.params.id, businessId: req.auth.businessId });
     if (!sale) return res.status(404).json({ error: 'Bill not found.' });
     res.json(sale);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -189,28 +191,30 @@ exports.updateGstSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
-    const prev = await GstSale.findById(req.params.id);
+    const businessId = req.auth.businessId;
+    const prev = await GstSale.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Bill not found.' });
 
-    await applyCustomerBalance(prev.customer?.name, -saleImpact(prev.bill_details));
-    await applyStock(prev.products, 1);
-    const bal = await applyCustomerBalance(data.customer.name, saleImpact(data.bill_details));
-    await applyStock(data.products, -1);
+    await applyCustomerBalance(businessId, prev.customer?.name, -saleImpact(prev.bill_details));
+    await applyStock(businessId, prev.products, 1);
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
+    await applyStock(businessId, data.products, -1);
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
     data.bill_details.billNumber = prev.bill_details?.billNumber || data.bill_details.billNumber;
 
-    const sale = await GstSale.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+    const sale = await GstSale.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(sale);
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 exports.deleteGstSale = async (req, res) => {
   try {
-    const sale = await GstSale.findByIdAndDelete(req.params.id);
+    const businessId = req.auth.businessId;
+    const sale = await GstSale.findOneAndDelete({ _id: req.params.id, businessId });
     if (!sale) return res.status(404).json({ error: 'Bill not found.' });
-    await applyCustomerBalance(sale.customer?.name, -saleImpact(sale.bill_details));
-    await applyStock(sale.products, 1);
+    await applyCustomerBalance(businessId, sale.customer?.name, -saleImpact(sale.bill_details));
+    await applyStock(businessId, sale.products, 1);
     res.json({ message: 'GST bill deleted successfully.' });
   } catch (error) { res.status(400).json({ error: error.message }); }
 };

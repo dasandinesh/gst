@@ -10,9 +10,9 @@ const saleImpact = (bill = {}) => number(bill.bill_amount) - number(bill.debit) 
 
 // Adjust a customer's running balance (customermodule `oldBalance`) by `delta`.
 // Returns { before, after } so callers can snapshot both on the bill.
-const applyCustomerBalance = async (name, delta) => {
+const applyCustomerBalance = async (businessId, name, delta) => {
   if (!name) return { before: 0, after: 0 };
-  const c = await Customer.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
+  const c = await Customer.findOne({ businessId, name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
   if (!c) return { before: 0, after: 0 };
   const before = number(c.oldBalance);
   const after = before + number(delta);
@@ -90,12 +90,14 @@ exports.createSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the sale.' });
+    const businessId = req.auth.businessId;
+    data.businessId = businessId;
     // Auto-assign the next bill serial number when the user didn't type one.
     if (!data.bill_details.order_sno) {
-      data.bill_details.order_sno = String(await Counter.next('sale'));
+      data.bill_details.order_sno = String(await Counter.next(`${businessId}:sale`));
     }
     // Post this bill to the customer's running balance and snapshot before/after on the bill.
-    const bal = await applyCustomerBalance(data.customer.name, saleImpact(data.bill_details));
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
     data.bill_details.old_balance = bal.before;
     data.bill_details.net_balance = bal.after;
     data.bill_details.balance = bal.after;
@@ -106,7 +108,7 @@ exports.createSale = async (req, res) => {
 
 exports.getSales = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.customer) filter['customer.name'] = { $regex: req.query.customer.trim(), $options: 'i' };
     // Free-text search box: matches customer name or bill number.
     if (req.query.q && req.query.q.trim()) {
@@ -149,7 +151,7 @@ exports.getSales = async (req, res) => {
 // not the whole product master.
 exports.getSoldProductNames = async (req, res) => {
   try {
-    const names = await Sale.distinct('products.name');
+    const names = await Sale.distinct('products.name', { businessId: req.auth.businessId });
     res.json(names.filter(Boolean).sort((a, b) => a.localeCompare(b)));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -157,7 +159,7 @@ exports.getSoldProductNames = async (req, res) => {
 };
 
 exports.getSaleById = async (req, res) => {
-  try { const sale = await Sale.findById(req.params.id); if (!sale) return res.status(404).json({ error: 'Sale not found.' }); res.json(sale); }
+  try { const sale = await Sale.findOne({ _id: req.params.id, businessId: req.auth.businessId }); if (!sale) return res.status(404).json({ error: 'Sale not found.' }); res.json(sale); }
   catch (error) { res.status(400).json({ error: error.message }); }
 };
 
@@ -165,15 +167,16 @@ exports.updateSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the sale.' });
-    const prev = await Sale.findById(req.params.id);
+    const businessId = req.auth.businessId;
+    const prev = await Sale.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Sale not found.' });
     // Reverse the old bill's balance effect (from its original customer), then apply the new one.
-    await applyCustomerBalance(prev.customer?.name, -saleImpact(prev.bill_details));
-    const bal = await applyCustomerBalance(data.customer.name, saleImpact(data.bill_details));
+    await applyCustomerBalance(businessId, prev.customer?.name, -saleImpact(prev.bill_details));
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
     data.bill_details.old_balance = bal.before;
     data.bill_details.net_balance = bal.after;
     data.bill_details.balance = bal.after;
-    const sale = await Sale.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+    const sale = await Sale.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(sale);
   }
   catch (error) { res.status(400).json({ error: error.message }); }
@@ -181,9 +184,10 @@ exports.updateSale = async (req, res) => {
 
 exports.deleteSale = async (req, res) => {
   try {
-    const sale = await Sale.findByIdAndDelete(req.params.id);
+    const businessId = req.auth.businessId;
+    const sale = await Sale.findOneAndDelete({ _id: req.params.id, businessId });
     if (!sale) return res.status(404).json({ error: 'Sale not found.' });
-    await applyCustomerBalance(sale.customer?.name, -saleImpact(sale.bill_details)); // undo its balance effect
+    await applyCustomerBalance(businessId, sale.customer?.name, -saleImpact(sale.bill_details)); // undo its balance effect
     res.json({ message: 'Sale deleted successfully.' });
   }
   catch (error) { res.status(400).json({ error: error.message }); }

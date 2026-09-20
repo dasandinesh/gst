@@ -7,9 +7,9 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Adjust a customer's running balance (customermodule `oldBalance`) by `delta`.
 // A receipt credits the account, i.e. pass a negative delta.
-const applyCustomerBalance = async (name, delta) => {
+const applyCustomerBalance = async (businessId, name, delta) => {
   if (!name || !delta) return;
-  const c = await Customer.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
+  const c = await Customer.findOne({ businessId, name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
   if (!c) return;
   c.oldBalance = number(c.oldBalance) + delta;
   await c.save();
@@ -28,12 +28,14 @@ exports.createReceipt = async (req, res) => {
     const data = prepare(req.body);
     if (!data.customer.name) return res.status(400).json({ error: 'Customer name is required.' });
     if (!data.amount || data.amount <= 0) return res.status(400).json({ error: 'Enter an amount greater than zero.' });
+    const businessId = req.auth.businessId;
+    data.businessId = businessId;
     // Auto receipt number when the user didn't type one.
     data.receipt_no = req.body.receipt_no
       ? String(req.body.receipt_no).trim()
-      : String(await Counter.next('receipt'));
+      : String(await Counter.next(`${businessId}:receipt`));
     const receipt = await Receipt.create(data);
-    await applyCustomerBalance(data.customer.name, -data.amount); // payment received reduces balance
+    await applyCustomerBalance(businessId, data.customer.name, -data.amount); // payment received reduces balance
     res.status(201).json(receipt);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -42,7 +44,7 @@ exports.createReceipt = async (req, res) => {
 
 exports.getReceipts = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.customer) filter['customer.name'] = { $regex: req.query.customer.trim(), $options: 'i' };
     if (req.query.startDate || req.query.endDate) {
       filter.date = {};
@@ -57,7 +59,7 @@ exports.getReceipts = async (req, res) => {
 
 exports.getReceiptById = async (req, res) => {
   try {
-    const receipt = await Receipt.findById(req.params.id);
+    const receipt = await Receipt.findOne({ _id: req.params.id, businessId: req.auth.businessId });
     if (!receipt) return res.status(404).json({ error: 'Receipt not found.' });
     res.json(receipt);
   } catch (error) {
@@ -71,11 +73,12 @@ exports.updateReceipt = async (req, res) => {
     if (!data.customer.name) return res.status(400).json({ error: 'Customer name is required.' });
     if (!data.amount || data.amount <= 0) return res.status(400).json({ error: 'Enter an amount greater than zero.' });
     if (req.body.receipt_no) data.receipt_no = String(req.body.receipt_no).trim();
-    const prev = await Receipt.findById(req.params.id);
+    const businessId = req.auth.businessId;
+    const prev = await Receipt.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Receipt not found.' });
-    await applyCustomerBalance(prev.customer?.name, number(prev.amount));  // undo old credit
-    await applyCustomerBalance(data.customer.name, -data.amount);          // apply new credit
-    const receipt = await Receipt.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+    await applyCustomerBalance(businessId, prev.customer?.name, number(prev.amount));  // undo old credit
+    await applyCustomerBalance(businessId, data.customer.name, -data.amount);          // apply new credit
+    const receipt = await Receipt.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(receipt);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -84,9 +87,10 @@ exports.updateReceipt = async (req, res) => {
 
 exports.deleteReceipt = async (req, res) => {
   try {
-    const receipt = await Receipt.findByIdAndDelete(req.params.id);
+    const businessId = req.auth.businessId;
+    const receipt = await Receipt.findOneAndDelete({ _id: req.params.id, businessId });
     if (!receipt) return res.status(404).json({ error: 'Receipt not found.' });
-    await applyCustomerBalance(receipt.customer?.name, number(receipt.amount)); // undo its credit
+    await applyCustomerBalance(businessId, receipt.customer?.name, number(receipt.amount)); // undo its credit
     res.json({ message: 'Receipt deleted successfully.' });
   } catch (error) {
     res.status(500).json({ error: error.message });

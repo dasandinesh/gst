@@ -1,5 +1,5 @@
 .dashboard-page {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 24px auto;
   padding: 0 16px;
 }
@@ -40,6 +40,91 @@
   white-space: nowrap;
 }
 .dashboard-refresh:disabled { opacity: .6; cursor: default; }
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.metric-card-warn {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+.metric-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.metric-value {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #12352c;
+}
+.metric-hint {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.metric-card-warn .metric-hint { color: #92400e; }
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.dashboard-subheading {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #12352c;
+}
+
+.dashboard-empty {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.dashboard-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.dashboard-mini-table th {
+  text-align: left;
+  padding: 6px 8px;
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  border-bottom: 1px solid #e2e8f0;
+}
+.dashboard-mini-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1f2937;
+}
+.dashboard-mini-table tr:last-child td { border-bottom: none; }
+
+/* Demoted sections (system status, backup) — same card shell, quieter heading. */
+.dashboard-card-compact {
+  margin-top: 16px;
+  background: #fbfdfc;
+}
+.dashboard-card-compact .dashboard-header { margin-bottom: 16px; }
+.dashboard-card-compact h2 { margin: 0 0 4px; font-size: 16px; color: #334155; }
 
 .status-grid {
   display: grid;

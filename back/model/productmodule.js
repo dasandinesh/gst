@@ -17,6 +17,12 @@ const entrySchema = new mongoose.Schema({
 }, { _id: false });
 
 const productSchema = new mongoose.Schema({
+  businessId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Business',
+    required: true,
+    index: true
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

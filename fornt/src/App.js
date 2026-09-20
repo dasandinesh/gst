@@ -1,6 +1,12 @@
 import './App.css';
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { AuthProvider } from './authContext';
+import RequireAuth from './components/auth/requireauth';
+import LoginPage from './components/auth/login';
+import SignupPage from './components/auth/signup';
+import ForgotPasswordPage from './components/auth/forgotpassword';
+import ResetPasswordPage from './components/auth/resetpassword';
 import OrderEntryResponsive from './components/order/orderentryresponsive';
 import OrderEntryMobile from './components/order/ordermobile';
 import SaleEntry from './components/sale/saleentry';
@@ -40,54 +46,72 @@ import SupplierLedger from './components/accounts/supplierledger';
 import GstReports from './components/reports/gstreports';
 import DayBook from './components/reports/daybook';
 
+// The app's nav/footer chrome, shown only once logged in — wraps every
+// protected route below via <Outlet />.
+const AppShell = () => (
+  <div className="app-shell">
+    <MainNav />
+    <main className="app-content">
+      <Outlet />
+    </main>
+    <MainFooter />
+  </div>
+);
+
 function App() {
   return (
-    <Router>
-      <div className="app-shell">
-        <MainNav />
-        <main className="app-content">
-          <Routes>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/order-entry" element={<OrderEntryResponsive />} />
-            <Route path="/order-entry-mobile" element={<OrderEntryMobile />} />
-            <Route path="/customers" element={<CustomerAdd />} />
-            <Route path="/customer-list" element={<CustomerList />} />
-            <Route path="/customer-list/:id" element={<CustomerDetails />} />
-            <Route path="/products" element={<ProductAdd />} />
-            <Route path="/product-list" element={<ProductList />} />
-            <Route path="/product-list/:id" element={<ProductDetails />} />
-            <Route path="/drivers" element={<DriverAdd />} />
-            <Route path="/driver-list" element={<DriverList />} />
-            <Route path="/vehicles" element={<VehicleAdd />} />
-            <Route path="/vehicle-list" element={<VehicleList />} />
-            <Route path="/order-list" element={<OrderList />} />
-            <Route path="/order-price-update" element={<OrderPrice />} />
-            <Route path="/sale-entry" element={<SaleEntry />} />
-            <Route path="/gst-billing" element={<GstBillEntry />} />
-            <Route path="/gst-bill-list" element={<GstBillList />} />
-            <Route path="/sale-list" element={<SaleBillList />} />
-            <Route path="/price-update" element={<Price />} />
-            <Route path="/invoice-setting" element={<InvoiceSetting />} />
-            <Route path="/receipts" element={<ReceiptEntry />} />
-            <Route path="/customer-ledger" element={<CustomerLedger />} />
-            <Route path="/suppliers" element={<SupplierAdd />} />
-            <Route path="/supplier-list" element={<SupplierList />} />
-            <Route path="/purchase-entry" element={<PurchaseBillEntry />} />
-            <Route path="/purchase-list" element={<PurchaseBillList />} />
-            <Route path="/stock-maintenance" element={<StockMaintenance />} />
-            <Route path="/credit-note-entry" element={<CreditNoteEntry />} />
-            <Route path="/credit-note-list" element={<CreditNoteList />} />
-            <Route path="/debit-note-entry" element={<DebitNoteEntry />} />
-            <Route path="/debit-note-list" element={<DebitNoteList />} />
-            <Route path="/payments" element={<PaymentEntry />} />
-            <Route path="/supplier-ledger" element={<SupplierLedger />} />
-            <Route path="/gst-reports" element={<GstReports />} />
-            <Route path="/day-book" element={<DayBook />} />
-          </Routes>
-        </main>
-        <MainFooter />
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+          <Route element={<RequireAuth />}>
+            <Route element={<AppShell />}>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/order-entry" element={<OrderEntryResponsive />} />
+              <Route path="/order-entry-mobile" element={<OrderEntryMobile />} />
+              <Route path="/customers" element={<CustomerAdd />} />
+              <Route path="/customer-list" element={<CustomerList />} />
+              <Route path="/customer-list/:id" element={<CustomerDetails />} />
+              <Route path="/products" element={<ProductAdd />} />
+              <Route path="/product-list" element={<ProductList />} />
+              <Route path="/product-list/:id" element={<ProductDetails />} />
+              <Route path="/drivers" element={<DriverAdd />} />
+              <Route path="/driver-list" element={<DriverList />} />
+              <Route path="/vehicles" element={<VehicleAdd />} />
+              <Route path="/vehicle-list" element={<VehicleList />} />
+              <Route path="/order-list" element={<OrderList />} />
+              <Route path="/order-price-update" element={<OrderPrice />} />
+              <Route path="/sale-entry" element={<SaleEntry />} />
+              <Route path="/gst-billing" element={<GstBillEntry />} />
+              <Route path="/gst-bill-list" element={<GstBillList />} />
+              <Route path="/sale-list" element={<SaleBillList />} />
+              <Route path="/price-update" element={<Price />} />
+              <Route path="/invoice-setting" element={<InvoiceSetting />} />
+              <Route path="/receipts" element={<ReceiptEntry />} />
+              <Route path="/customer-ledger" element={<CustomerLedger />} />
+              <Route path="/suppliers" element={<SupplierAdd />} />
+              <Route path="/supplier-list" element={<SupplierList />} />
+              <Route path="/purchase-entry" element={<PurchaseBillEntry />} />
+              <Route path="/purchase-list" element={<PurchaseBillList />} />
+              <Route path="/stock-maintenance" element={<StockMaintenance />} />
+              <Route path="/credit-note-entry" element={<CreditNoteEntry />} />
+              <Route path="/credit-note-list" element={<CreditNoteList />} />
+              <Route path="/debit-note-entry" element={<DebitNoteEntry />} />
+              <Route path="/debit-note-list" element={<DebitNoteList />} />
+              <Route path="/payments" element={<PaymentEntry />} />
+              <Route path="/supplier-ledger" element={<SupplierLedger />} />
+              <Route path="/gst-reports" element={<GstReports />} />
+              <Route path="/day-book" element={<DayBook />} />
+            </Route>
+          </Route>
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

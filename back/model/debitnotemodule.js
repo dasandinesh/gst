@@ -38,7 +38,7 @@ const originalBillSchema = new mongoose.Schema({
 const DEBIT_NOTE_REASONS = ['Purchase Return', 'Rate Difference', 'Discount Received', 'Deficiency in Goods/Services', 'Correction of Invoice', 'Other'];
 
 const debitNoteBillDetailsSchema = new mongoose.Schema({
-  debitNoteNumber: { type: String, unique: true },
+  debitNoteNumber: { type: String },
   date: { type: Date, required: true },
   taxType: { type: String, enum: ['CGST_SGST', 'IGST'], default: 'CGST_SGST' },
   placeOfSupply: { type: String, default: '' },
@@ -56,6 +56,7 @@ const debitNoteBillDetailsSchema = new mongoose.Schema({
 }, { _id: false });
 
 const debitNoteSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   originalBill: originalBillSchema,
   supplier: {
     name: { type: String, required: true },
@@ -67,6 +68,8 @@ const debitNoteSchema = new mongoose.Schema({
   gstTotals: { type: Map, of: debitNoteRateTotalsSchema },
   bill_details: debitNoteBillDetailsSchema
 }, { timestamps: true });
+
+debitNoteSchema.index({ businessId: 1, 'bill_details.debitNoteNumber': 1 }, { unique: true });
 
 const DebitNoteModel = mongoose.model('DebitNote', debitNoteSchema);
 DebitNoteModel.debitNoteSchema = debitNoteSchema;

@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/backupcontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 router.get('/download', controller.downloadBackup);
 

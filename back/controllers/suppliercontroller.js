@@ -5,6 +5,7 @@ exports.createSupplier = async (req, res) => {
     try {
         const supplierData = {
             ...req.body,
+            businessId: req.auth.businessId,
             oldBalance: Number(req.body.oldBalance || 0), // opening payable balance; grows/shrinks with purchases
         };
         const supplier = new Supplier(supplierData);
@@ -18,7 +19,7 @@ exports.createSupplier = async (req, res) => {
 // Get all suppliers
 exports.getSuppliers = async (req, res) => {
     try {
-        const suppliers = await Supplier.find();
+        const suppliers = await Supplier.find({ businessId: req.auth.businessId });
         res.status(200).json(suppliers);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -28,7 +29,7 @@ exports.getSuppliers = async (req, res) => {
 // Get a supplier by ID
 exports.getSupplierById = async (req, res) => {
     try {
-        const supplier = await Supplier.findById(req.params.id);
+        const supplier = await Supplier.findOne({ _id: req.params.id, businessId: req.auth.businessId });
         if (!supplier) {
             return res.status(404).json({ error: 'Supplier not found' });
         }
@@ -41,8 +42,8 @@ exports.getSupplierById = async (req, res) => {
 // Update a supplier by ID
 exports.updateSupplier = async (req, res) => {
     try {
-        const supplier = await Supplier.findByIdAndUpdate(
-            req.params.id,
+        const supplier = await Supplier.findOneAndUpdate(
+            { _id: req.params.id, businessId: req.auth.businessId },
             req.body,
             { new: true }
         );
@@ -58,7 +59,7 @@ exports.updateSupplier = async (req, res) => {
 // Delete a supplier by ID
 exports.deleteSupplier = async (req, res) => {
     try {
-        const supplier = await Supplier.findByIdAndDelete(req.params.id);
+        const supplier = await Supplier.findOneAndDelete({ _id: req.params.id, businessId: req.auth.businessId });
         if (!supplier) {
             return res.status(404).json({ error: 'Supplier not found' });
         }

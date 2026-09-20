@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const driverController = require('../controllers/drivercontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 // Create a new driver
 router.post('/', driverController.createDriver);

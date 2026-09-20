@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 // A payment voucher — money paid out to a supplier. Posts to the supplier
 // ledger as a debit (reduces what we owe them).
 const paymentSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   payment_no: { type: String, trim: true, default: '' },
   date: { type: Date, default: Date.now },
   supplier: {

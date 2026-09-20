@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
+  businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
   name: { type: String, required: true },
   createDate: { type: Date, default: Date.now },
   phone: { type: String },

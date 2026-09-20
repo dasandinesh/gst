@@ -5,6 +5,7 @@ exports.createCustomer = async (req, res) => {
     try {
         const customerData = {
             ...req.body,
+            businessId: req.auth.businessId,
             oldBalance: Number(req.body.oldBalance || 0), // opening balance; grows/shrinks with sales & receipts
         };
         const customer = new Customer(customerData);
@@ -18,7 +19,7 @@ exports.createCustomer = async (req, res) => {
 // Get all customers
 exports.getCustomers = async (req, res) => {
     try {
-        const customers = await Customer.find();
+        const customers = await Customer.find({ businessId: req.auth.businessId });
         res.status(200).json(customers);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -28,7 +29,7 @@ exports.getCustomers = async (req, res) => {
 // Get a customer by ID
 exports.getCustomerById = async (req, res) => {
     try {
-        const customer = await Customer.findById(req.params.id);
+        const customer = await Customer.findOne({ _id: req.params.id, businessId: req.auth.businessId });
 
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });
@@ -43,8 +44,8 @@ exports.getCustomerById = async (req, res) => {
 // Update a customer by ID
 exports.updateCustomer = async (req, res) => {
     try {
-        const customer = await Customer.findByIdAndUpdate(
-            req.params.id,
+        const customer = await Customer.findOneAndUpdate(
+            { _id: req.params.id, businessId: req.auth.businessId },
             req.body,
             { new: true }
         );
@@ -60,7 +61,7 @@ exports.updateCustomer = async (req, res) => {
 // Delete a customer by ID
 exports.deleteCustomer = async (req, res) => {
     try {
-        const customer = await Customer.findByIdAndDelete(req.params.id);
+        const customer = await Customer.findOneAndDelete({ _id: req.params.id, businessId: req.auth.businessId });
 
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });

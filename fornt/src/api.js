@@ -18,7 +18,9 @@ const API_BASE = process.env.REACT_APP_API_URL || '';
 export async function fetchJson(url, options = {}) {
   let response;
   try {
-    response = await fetch(`${API_BASE}${url}`, options);
+    // 'include' so the httpOnly session cookie (set by /api/auth/*) is sent
+    // even when the frontend and backend are on different Vercel domains.
+    response = await fetch(`${API_BASE}${url}`, { credentials: 'include', ...options });
   } catch {
     throw new Error('Cannot reach the server. Check that the backend is running on port 8000.');
   }

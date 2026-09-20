@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const supplierController = require('../controllers/suppliercontroller');
+const { protect } = require('../middleware/authmiddleware');
+
+router.use(protect);
 
 // Create a new supplier
 router.post('/', supplierController.createSupplier);

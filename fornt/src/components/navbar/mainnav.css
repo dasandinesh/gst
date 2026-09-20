@@ -173,16 +173,44 @@
   background: #d6f0e4;
 }
 
-.mainnav-user {
+.mainnav-user { gap: 10px; }
+.mainnav-user-avatar {
+  display: flex;
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
   justify-content: center;
+  align-items: center;
   overflow: hidden;
   background: #e1f2e9;
   border: 2px solid rgba(255, 255, 255, .35);
   border-radius: 50%;
 }
-.mainnav-user img { width: 100%; height: 100%; object-fit: cover; }
+.mainnav-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.mainnav-user-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.mainnav-business-name { font-weight: 700; }
+.mainnav-user-name { opacity: .8; }
+.mainnav-logout {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mainnav-logout:hover { background: rgba(255, 255, 255, .22); }
 
 /* Hamburger toggler — hidden above the mobile breakpoint (see media query below). */
 .mainnav-toggler {

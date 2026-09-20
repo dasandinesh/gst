@@ -10,9 +10,9 @@ const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // A debit note reduces what we owe the supplier — same running balance purchases use.
-const applySupplierBalance = async (name, delta) => {
+const applySupplierBalance = async (businessId, name, delta) => {
   if (!name) return { before: 0, after: 0 };
-  const s = await Supplier.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
+  const s = await Supplier.findOne({ businessId, name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
   if (!s) return { before: 0, after: 0 };
   const before = number(s.oldBalance);
   const after = before + number(delta);
@@ -23,12 +23,12 @@ const applySupplierBalance = async (name, delta) => {
 // A debit note (typically a purchase return) sends stock back out, matched to the
 // product master by exact (case-insensitive) name, same as sales/purchases/credit
 // notes. sign is -1 to remove stock (create) or +1 to reverse it (delete/update/undo).
-const applyStock = async (products = [], sign = -1) => {
+const applyStock = async (businessId, products = [], sign = -1) => {
   await Promise.all(products.map((p) => {
     const qty = number(p.quantity);
     if (!p.name || !qty) return null;
     return Product.updateOne(
-      { name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
+      { businessId, name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
       { $inc: { StockQunity: sign * qty } }
     );
   }));
@@ -136,15 +136,17 @@ exports.createDebitNote = async (req, res) => {
     const data = prepareDebitNote(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the debit note.' });
     if (!data.originalBill.billNumber) return res.status(400).json({ error: 'A debit note must reference the original purchase bill number.' });
+    const businessId = req.auth.businessId;
+    data.businessId = businessId;
     if (!data.bill_details.debitNoteNumber) {
       const fy = financialYearLabel(data.bill_details.date);
-      const seq = await Counter.next(`debitnote:${fy}`);
+      const seq = await Counter.next(`${businessId}:debitnote:${fy}`);
       data.bill_details.debitNoteNumber = `DN/${fy}/${String(seq).padStart(4, '0')}`;
     }
-    const bal = await applySupplierBalance(data.supplier.name, debitImpact(data.bill_details));
+    const bal = await applySupplierBalance(businessId, data.supplier.name, debitImpact(data.bill_details));
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
-    await applyStock(data.products, -1);
+    await applyStock(businessId, data.products, -1);
     const note = await DebitNote.create(data);
     res.status(201).json(note);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -152,7 +154,7 @@ exports.createDebitNote = async (req, res) => {
 
 exports.getDebitNotes = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.q && req.query.q.trim()) {
       const rx = { $regex: escapeRegex(req.query.q.trim()), $options: 'i' };
       filter.$or = [{ 'supplier.name': rx }, { 'bill_details.debitNoteNumber': rx }, { 'originalBill.billNumber': rx }];
@@ -181,7 +183,7 @@ exports.getDebitNotes = async (req, res) => {
 
 exports.getDebitNoteById = async (req, res) => {
   try {
-    const note = await DebitNote.findById(req.params.id);
+    const note = await DebitNote.findOne({ _id: req.params.id, businessId: req.auth.businessId });
     if (!note) return res.status(404).json({ error: 'Debit note not found.' });
     res.json(note);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -191,28 +193,30 @@ exports.updateDebitNote = async (req, res) => {
   try {
     const data = prepareDebitNote(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the debit note.' });
-    const prev = await DebitNote.findById(req.params.id);
+    const businessId = req.auth.businessId;
+    const prev = await DebitNote.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Debit note not found.' });
 
-    await applySupplierBalance(prev.supplier?.name, -debitImpact(prev.bill_details));
-    await applyStock(prev.products, 1);
-    const bal = await applySupplierBalance(data.supplier.name, debitImpact(data.bill_details));
-    await applyStock(data.products, -1);
+    await applySupplierBalance(businessId, prev.supplier?.name, -debitImpact(prev.bill_details));
+    await applyStock(businessId, prev.products, 1);
+    const bal = await applySupplierBalance(businessId, data.supplier.name, debitImpact(data.bill_details));
+    await applyStock(businessId, data.products, -1);
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
     data.bill_details.debitNoteNumber = prev.bill_details?.debitNoteNumber || data.bill_details.debitNoteNumber;
 
-    const note = await DebitNote.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+    const note = await DebitNote.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(note);
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 exports.deleteDebitNote = async (req, res) => {
   try {
-    const note = await DebitNote.findByIdAndDelete(req.params.id);
+    const businessId = req.auth.businessId;
+    const note = await DebitNote.findOneAndDelete({ _id: req.params.id, businessId });
     if (!note) return res.status(404).json({ error: 'Debit note not found.' });
-    await applySupplierBalance(note.supplier?.name, -debitImpact(note.bill_details));
-    await applyStock(note.products, 1);
+    await applySupplierBalance(businessId, note.supplier?.name, -debitImpact(note.bill_details));
+    await applyStock(businessId, note.products, 1);
     res.json({ message: 'Debit note deleted successfully.' });
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
@@ -222,7 +226,7 @@ exports.findOriginalBill = async (req, res) => {
   try {
     const billNumber = String(req.query.billNumber || '').trim();
     if (!billNumber) return res.status(400).json({ error: 'billNumber is required.' });
-    const bill = await Purchase.findOne({ 'bill_details.billNumber': new RegExp(`^${escapeRegex(billNumber)}$`, 'i') });
+    const bill = await Purchase.findOne({ businessId: req.auth.businessId, 'bill_details.billNumber': new RegExp(`^${escapeRegex(billNumber)}$`, 'i') });
     if (!bill) return res.status(404).json({ error: 'No purchase bill found with that bill number.' });
     res.json(bill);
   } catch (error) { res.status(500).json({ error: error.message }); }

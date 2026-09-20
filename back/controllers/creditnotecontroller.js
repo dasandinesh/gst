@@ -10,9 +10,9 @@ const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // A credit note reduces what the customer owes — same running balance GST sales use.
-const applyCustomerBalance = async (name, delta) => {
+const applyCustomerBalance = async (businessId, name, delta) => {
   if (!name) return { before: 0, after: 0 };
-  const c = await Customer.findOne({ name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
+  const c = await Customer.findOne({ businessId, name: new RegExp(`^${escapeRegex(name)}$`, 'i') });
   if (!c) return { before: 0, after: 0 };
   const before = number(c.oldBalance);
   const after = before + number(delta);
@@ -23,12 +23,12 @@ const applyCustomerBalance = async (name, delta) => {
 // A credit note (typically a sales return) puts stock back, matched to the product
 // master by exact (case-insensitive) name, same as sales/purchases. sign is +1 to
 // add stock back (create) or -1 to reverse it.
-const applyStock = async (products = [], sign = 1) => {
+const applyStock = async (businessId, products = [], sign = 1) => {
   await Promise.all(products.map((p) => {
     const qty = number(p.quantity);
     if (!p.name || !qty) return null;
     return Product.updateOne(
-      { name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
+      { businessId, name: new RegExp(`^${escapeRegex(p.name.trim())}$`, 'i') },
       { $inc: { StockQunity: sign * qty } }
     );
   }));
@@ -136,15 +136,17 @@ exports.createCreditNote = async (req, res) => {
     const data = prepareCreditNote(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the credit note.' });
     if (!data.originalBill.billNumber) return res.status(400).json({ error: 'A credit note must reference the original bill number.' });
+    const businessId = req.auth.businessId;
+    data.businessId = businessId;
     if (!data.bill_details.creditNoteNumber) {
       const fy = financialYearLabel(data.bill_details.date);
-      const seq = await Counter.next(`creditnote:${fy}`);
+      const seq = await Counter.next(`${businessId}:creditnote:${fy}`);
       data.bill_details.creditNoteNumber = `CN/${fy}/${String(seq).padStart(4, '0')}`;
     }
-    const bal = await applyCustomerBalance(data.customer.name, creditImpact(data.bill_details));
+    const bal = await applyCustomerBalance(businessId, data.customer.name, creditImpact(data.bill_details));
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
-    await applyStock(data.products, 1);
+    await applyStock(businessId, data.products, 1);
     const note = await CreditNote.create(data);
     res.status(201).json(note);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -152,7 +154,7 @@ exports.createCreditNote = async (req, res) => {
 
 exports.getCreditNotes = async (req, res) => {
   try {
-    const filter = {};
+    const filter = { businessId: req.auth.businessId };
     if (req.query.q && req.query.q.trim()) {
       const rx = { $regex: escapeRegex(req.query.q.trim()), $options: 'i' };
       filter.$or = [{ 'customer.name': rx }, { 'bill_details.creditNoteNumber': rx }, { 'originalBill.billNumber': rx }];
@@ -181,7 +183,7 @@ exports.getCreditNotes = async (req, res) => {
 
 exports.getCreditNoteById = async (req, res) => {
   try {
-    const note = await CreditNote.findById(req.params.id);
+    const note = await CreditNote.findOne({ _id: req.params.id, businessId: req.auth.businessId });
     if (!note) return res.status(404).json({ error: 'Credit note not found.' });
     res.json(note);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -191,28 +193,30 @@ exports.updateCreditNote = async (req, res) => {
   try {
     const data = prepareCreditNote(req.body);
     if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the credit note.' });
-    const prev = await CreditNote.findById(req.params.id);
+    const businessId = req.auth.businessId;
+    const prev = await CreditNote.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Credit note not found.' });
 
-    await applyCustomerBalance(prev.customer?.name, -creditImpact(prev.bill_details));
-    await applyStock(prev.products, -1);
-    const bal = await applyCustomerBalance(data.customer.name, creditImpact(data.bill_details));
-    await applyStock(data.products, 1);
+    await applyCustomerBalance(businessId, prev.customer?.name, -creditImpact(prev.bill_details));
+    await applyStock(businessId, prev.products, -1);
+    const bal = await applyCustomerBalance(businessId, data.customer.name, creditImpact(data.bill_details));
+    await applyStock(businessId, data.products, 1);
     data.bill_details.oldBalance = bal.before;
     data.bill_details.newBalance = bal.after;
     data.bill_details.creditNoteNumber = prev.bill_details?.creditNoteNumber || data.bill_details.creditNoteNumber;
 
-    const note = await CreditNote.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+    const note = await CreditNote.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(note);
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 exports.deleteCreditNote = async (req, res) => {
   try {
-    const note = await CreditNote.findByIdAndDelete(req.params.id);
+    const businessId = req.auth.businessId;
+    const note = await CreditNote.findOneAndDelete({ _id: req.params.id, businessId });
     if (!note) return res.status(404).json({ error: 'Credit note not found.' });
-    await applyCustomerBalance(note.customer?.name, -creditImpact(note.bill_details));
-    await applyStock(note.products, -1);
+    await applyCustomerBalance(businessId, note.customer?.name, -creditImpact(note.bill_details));
+    await applyStock(businessId, note.products, -1);
     res.json({ message: 'Credit note deleted successfully.' });
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
@@ -222,7 +226,7 @@ exports.findOriginalBill = async (req, res) => {
   try {
     const billNumber = String(req.query.billNumber || '').trim();
     if (!billNumber) return res.status(400).json({ error: 'billNumber is required.' });
-    const bill = await GstSale.findOne({ 'bill_details.billNumber': new RegExp(`^${escapeRegex(billNumber)}$`, 'i') });
+    const bill = await GstSale.findOne({ businessId: req.auth.businessId, 'bill_details.billNumber': new RegExp(`^${escapeRegex(billNumber)}$`, 'i') });
     if (!bill) return res.status(404).json({ error: 'No GST bill found with that bill number.' });
     res.json(bill);
   } catch (error) { res.status(500).json({ error: error.message }); }
