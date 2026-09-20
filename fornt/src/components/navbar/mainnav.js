@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import NavIcon from './navicons';
 import { useAuth } from '../../authContext';
-import { fetchJson } from '../../api';
 import './mainnav.css';
 
 const DASHBOARD_LINK = { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' };
@@ -100,13 +99,6 @@ const MainNav = () => {
   const navRef = useRef(null);
   const { session, logout } = useAuth();
   const navigate = useNavigate();
-  // Business's uploaded letterhead logo (Invoice Setting page) replaces the
-  // static placeholder image once one is set.
-  const [logo, setLogo] = useState('');
-
-  useEffect(() => {
-    fetchJson('/api/invoice-settings/active').then((s) => setLogo(s.logo || '')).catch(() => setLogo(''));
-  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -136,9 +128,6 @@ const MainNav = () => {
 
   return (
     <nav className="mainnav" aria-label="Main navigation" ref={navRef}>
-      {/* <div className="mainnav-logo">
-        {logo ? <img src={logo} alt="Logo" /> : null}
-      </div> */}
 
       <button
         type="button"
