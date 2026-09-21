@@ -48,6 +48,23 @@ app.use(cookieParser());
 // Default 100kb is too small once the invoice-setting logo (a base64 data
 // URI) is included in the request body.
 app.use(express.json({ limit: '5mb' }));
+
+// On a cold serverless start, the connectDatabase() call above is
+// fire-and-forget — a request can arrive and run a query before it resolves.
+// Mongoose then buffers that query until connected, up to its default 10s
+// bufferTimeoutMS, surfacing as "Operation `<collection>.findOne()` buffering
+// timed out after 10000ms". Awaiting the same (cached) connect promise here,
+// before any route runs, closes that race. Skips /api/health, which does its
+// own await and needs to report a down DB rather than be blocked by one.
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health') return next();
+  await connectDatabase();
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ error: 'Database unavailable. Please try again in a moment.' });
+  }
+  next();
+});
+
 app.use('/api/auth', authrouter);
 app.use('/api/customers', custumerrouter);
 app.use('/api/products', productrouter);
