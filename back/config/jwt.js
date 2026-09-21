@@ -15,13 +15,16 @@ const signPendingToken = ({ userId }) =>
 
 const verifyToken = (token) => jwt.verify(token, process.env.JWT_SECRET);
 
-// httpOnly so client-side JS can't read/steal it; sameSite 'none' + secure
-// in production because the frontend and backend are separate Vercel
-// deployments (different origins), which cross-site cookies require.
+// httpOnly so client-side JS can't read/steal it. The frontend's Vercel
+// deployment proxies /api/* to this backend (see fornt/vercel.json), so from
+// the browser's perspective every request is same-origin — sameSite 'lax'
+// works reliably here. (Cross-site sameSite:'none' was tried previously, but
+// browsers increasingly refuse to persist third-party cookies at all, which
+// dropped the session on the very next request.)
 const cookieOptions = (maxAgeMs) => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  sameSite: 'lax',
   maxAge: maxAgeMs,
 });
 
@@ -33,7 +36,7 @@ const pendingCookieOptions = () => cookieOptions(10 * 60 * 1000);
 const clearCookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  sameSite: 'lax',
 });
 
 module.exports = { signSessionToken, signPendingToken, verifyToken, sessionCookieOptions, pendingCookieOptions, clearCookieOptions };
