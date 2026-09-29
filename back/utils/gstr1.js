@@ -111,8 +111,9 @@ const docSeries = (numbers) => {
 };
 
 // business: { gstin, state }; sales / creditNotes: documents dated in the period;
-// originalSales: the GstSale documents those credit notes point at (may be older).
-const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], fp }) => {
+// originalSales: the GstSale documents those credit notes point at (may be older);
+// ecomSales: EcomSale month summaries (marketplace sales, see utils/ecomReport.js).
+const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], ecomSales = [], fp }) => {
   const warnings = [];
   const gstin = cleanGstin(business.gstin);
   if (!GSTIN_PATTERN.test(gstin)) {
@@ -217,6 +218,46 @@ const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], fp }) =>
     }
   });
 
+  // Marketplace (e-commerce operator) sales: already net of returns, B2C only.
+  // B2CS rows are tagged with the operator (typ 'E' + etin); Table 14 gets one
+  // row per operator; HSN goes into the B2C HSN table.
+  const supeco = {};
+  ecomSales.forEach((e) => {
+    (e.rows || []).forEach((r) => {
+      if (!num(r.rate)) {
+        const type = r.inter ? 'INTRB2C' : 'INTRAB2C';
+        nil[type] = (nil[type] || 0) + num(r.taxableValue);
+        return;
+      }
+      const key = `E|${e.etin}|${r.inter ? 'INTER' : 'INTRA'}|${r.pos}|${r.rate}`;
+      if (!b2cs[key]) b2cs[key] = { sply_ty: r.inter ? 'INTER' : 'INTRA', pos: r.pos, typ: 'E', etin: e.etin, rt: num(r.rate), txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 };
+      const row = b2cs[key];
+      row.txval += num(r.taxableValue);
+      row.iamt += num(r.igst);
+      row.camt += num(r.cgst);
+      row.samt += num(r.sgst);
+    });
+    if (!supeco[e.etin]) supeco[e.etin] = { etin: e.etin, suppval: 0, igst: 0, cgst: 0, sgst: 0, cess: 0 };
+    const t = supeco[e.etin];
+    t.suppval += num(e.totals?.taxableValue);
+    t.igst += num(e.totals?.igst);
+    t.cgst += num(e.totals?.cgst);
+    t.sgst += num(e.totals?.sgst);
+    (e.hsn || []).forEach((h) => {
+      const code = String(h.hsnCode || '').trim();
+      if (!code || code === '—') { missingHsn.add(`marketplace ${e.etin}`); return; }
+      const uqc = String(code).startsWith('99') ? 'NA' : 'NOS';
+      const key = `${code}|${num(h.rate)}|${uqc}`;
+      if (!hsn.b2c[key]) hsn.b2c[key] = { hsn_sc: code, desc: '', uqc, qty: 0, rt: num(h.rate), txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 };
+      const row = hsn.b2c[key];
+      row.qty += uqc === 'NA' ? 0 : num(h.quantity);
+      row.txval += num(h.taxableValue);
+      row.iamt += num(h.igst);
+      row.camt += num(h.cgst);
+      row.samt += num(h.sgst);
+    });
+  });
+
   const roundRow = (row) => {
     const out = { ...row };
     ['txval', 'iamt', 'camt', 'samt', 'csamt', 'qty'].forEach((k) => { if (k in out) out[k] = round2(out[k]); });
@@ -256,6 +297,11 @@ const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], fp }) =>
   const hsnB2c = hsnRows(hsn.b2c);
   if (hsnB2b.length || hsnB2c.length) json.hsn = { hsn_b2b: hsnB2b, hsn_b2c: hsnB2c };
   if (docDet.length) json.doc_issue = { doc_det: docDet };
+  // Table 14(a): supplies made through e-commerce operators who collect TCS (section 52).
+  const supecoRows = Object.values(supeco).map((t) => ({
+    etin: t.etin, suppval: round2(t.suppval), igst: round2(t.igst), cgst: round2(t.cgst), sgst: round2(t.sgst), cess: 0,
+  }));
+  if (supecoRows.length) json.supeco = { clttx: supecoRows };
   const nilRows = Object.entries(nil).map(([sply_ty, amt]) => ({ sply_ty, nil_amt: round2(amt), expt_amt: 0, ngsup_amt: 0 }));
   if (nilRows.length) {
     json.nil = { inv: nilRows };
@@ -269,6 +315,7 @@ const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], fp }) =>
     cdnr: Object.values(cdnr).reduce((n, g) => n + g.nt.length, 0),
     cdnur: cdnur.length,
     hsn: hsnB2b.length + hsnB2c.length,
+    ecom: supecoRows.length,
   };
   return { json, warnings, counts };
 };

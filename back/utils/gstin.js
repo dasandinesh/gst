@@ -15,9 +15,7 @@ const normalizeGstin = (value) => {
 // The 15th character is a check digit over the first 14 (mod-36, like Luhn).
 // A GSTIN can match GSTIN_PATTERN and still be a typo; the portal rejects those.
 const GSTIN_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const gstinChecksumOk = (value) => {
-  const gstin = String(value || '').trim().toUpperCase();
-  if (!GSTIN_PATTERN.test(gstin)) return false;
+const checkDigitOk = (gstin) => {
   let sum = 0;
   for (let i = 0; i < 14; i += 1) {
     const product = GSTIN_CHARS.indexOf(gstin[i]) * (i % 2 === 0 ? 1 : 2);
@@ -25,5 +23,17 @@ const gstinChecksumOk = (value) => {
   }
   return GSTIN_CHARS[(36 - (sum % 36)) % 36] === gstin[14];
 };
+const gstinChecksumOk = (value) => {
+  const gstin = String(value || '').trim().toUpperCase();
+  return GSTIN_PATTERN.test(gstin) && checkDigitOk(gstin);
+};
 
-module.exports = { GSTIN_PATTERN, normalizeGstin, gstinChecksumOk };
+// E-commerce operators collecting TCS (section 52) are registered with a 'C' as
+// the 14th character instead of 'Z' (e.g. 33AARCM9332R1CV).
+const TCS_GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]C[0-9A-Z]$/;
+const tcsGstinOk = (value) => {
+  const gstin = String(value || '').trim().toUpperCase();
+  return TCS_GSTIN_PATTERN.test(gstin) && checkDigitOk(gstin);
+};
+
+module.exports = { GSTIN_PATTERN, normalizeGstin, gstinChecksumOk, TCS_GSTIN_PATTERN, tcsGstinOk };

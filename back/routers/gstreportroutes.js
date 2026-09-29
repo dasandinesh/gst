@@ -11,6 +11,10 @@ router.get('/', controller.getGstSummary);
 // GSTR-1 JSON in the GST portal's offline-upload format.
 router.get('/gstr1', gstr1.exportGstr1);
 router.get('/gstr1/check', gstr1.checkGstr1);
+// Marketplace (e-commerce operator) sales reports, included in the GSTR-1 export
+router.post('/ecom/import', gstr1.importEcom);
+router.get('/ecom', gstr1.listEcom);
+router.delete('/ecom/:id', gstr1.deleteEcom);
 router.post('/gstr1/import', gstr1.importGstr1);
 
 module.exports = router;

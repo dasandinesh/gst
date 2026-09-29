@@ -2,7 +2,26 @@ const GstSale = require('../model/salesmodule');
 const CreditNote = require('../model/creditnotemodule');
 const Purchase = require('../model/purchasemodule');
 const DebitNote = require('../model/debitnotemodule');
+const EcomSale = require('../model/ecomsalemodule');
 const { num, round2, mergeRateTotals, finalizeRateTable, totalsOf } = require('../utils/gstAggregation');
+
+// An imported marketplace month (EcomSale) in the shape the aggregation helpers
+// read from a bill: gstTotals keyed by rate, and items for the HSN summary.
+const ecomAsDoc = (e) => {
+  const gstTotals = {};
+  (e.rows || []).forEach((r) => {
+    const t = gstTotals[r.rate] || (gstTotals[r.rate] = { taxableValue: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0 });
+    t.taxableValue += num(r.taxableValue);
+    t.cgstAmount += num(r.cgst);
+    t.sgstAmount += num(r.sgst);
+    t.igstAmount += num(r.igst);
+  });
+  const items = (e.hsn || []).map((h) => ({
+    hsnCode: h.hsnCode, gstRate: h.rate, unit: 'Nos', quantity: h.quantity, taxableValue: h.taxableValue,
+    cgstAmount: h.cgst, sgstAmount: h.sgst, igstAmount: h.igst, amount: num(h.taxableValue) + num(h.cgst) + num(h.sgst) + num(h.igst),
+  }));
+  return { gstTotals, items };
+};
 
 const dateFilter = (req) => {
   const filter = { businessId: req.auth.businessId };
@@ -52,15 +71,21 @@ const mergeHsnSummary = (docsWithSign) => {
 exports.getGstSummary = async (req, res) => {
   try {
     const filter = dateFilter(req);
-    const [gstSales, creditNotes, purchases, debitNotes] = await Promise.all([
+    const ecomQuery = { businessId: req.auth.businessId };
+    if (req.query.startDate) ecomQuery.periodEnd = { $gte: new Date(`${req.query.startDate}T00:00:00.000Z`) };
+    if (req.query.endDate) ecomQuery.periodStart = { $lte: new Date(`${req.query.endDate}T23:59:59.999Z`) };
+    const [gstSales, creditNotes, purchases, debitNotes, ecomSales] = await Promise.all([
       GstSale.find(filter),
       CreditNote.find(filter),
       Purchase.find(filter),
       DebitNote.find(filter),
+      EcomSale.find(ecomQuery).lean(),
     ]);
+    const ecomDocs = ecomSales.map(ecomAsDoc);
 
     const outwardTable = {};
     mergeRateTotals(gstSales, 1, outwardTable);
+    mergeRateTotals(ecomDocs, 1, outwardTable);
     mergeRateTotals(creditNotes, -1, outwardTable);
     const outwardRows = finalizeRateTable(outwardTable);
 
@@ -79,7 +104,7 @@ exports.getGstSummary = async (req, res) => {
     };
     netPayable.total = round2(netPayable.cgst + netPayable.sgst + netPayable.igst);
 
-    const hsnSummary = mergeHsnSummary([[gstSales, 1], [creditNotes, -1]]);
+    const hsnSummary = mergeHsnSummary([[gstSales, 1], [ecomDocs, 1], [creditNotes, -1]]);
 
     res.json({
       period: { startDate: req.query.startDate || null, endDate: req.query.endDate || null },
@@ -88,6 +113,8 @@ exports.getGstSummary = async (req, res) => {
         totals: outwardTotals,
         billCount: gstSales.length,
         creditNoteCount: creditNotes.length,
+        ecomMonthCount: ecomSales.length,
+        ecomTaxableValue: round2(ecomSales.reduce((t, e) => t + num(e.totals?.taxableValue), 0)),
       },
       inward: {
         rateWise: inwardRows,

@@ -74,6 +74,9 @@ const ACCOUNT_LINKS = [
   { to: '/payments', label: 'Payments', icon: 'receipt' },
   { to: '/customer-ledger', label: 'Customer Ledger', icon: 'book' },
   { to: '/supplier-ledger', label: 'Supplier Ledger', icon: 'book' },
+  { to: '/chart-of-accounts', label: 'Chart of Accounts', icon: 'layers' },
+  { to: '/trial-balance', label: 'Trial Balance', icon: 'clipboard' },
+  { to: '/account-ledger', label: 'Account Ledger', icon: 'book' },
 ];
 
 const REPORT_LINKS = [

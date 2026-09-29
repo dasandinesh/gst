@@ -1,0 +1,10 @@
+/* Books of accounts pages (chart of accounts, trial balance, account ledger),
+   layered on accounts.css (acc-page / acc-card / acc-table). */
+.books-page { max-width: 1200px; }
+.books-table td a { color: #1f4b3e; font-weight: 600; text-decoration: none; }
+.books-table td a:hover { text-decoration: underline; }
+.books-table .books-group-row td { background: #eef4f1; color: #1f4b3e; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.books-muted { color: #64748b; font-size: 12px; }
+.books-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #475569; cursor: pointer; }
+.books-back { margin: 0 0 6px; font-size: 13px; }
+.books-back a { color: #237553; }

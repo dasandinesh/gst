@@ -41,6 +41,9 @@ import ProductDetails from './components/product/productdetails';
 import OrderList from './components/order/orderlist';
 import InvoiceSetting from './components/invoice/invoicesetting';
 import EntryPreferences from './components/preferences/entrypreferences';
+import ChartOfAccounts from './components/books/chartofaccounts';
+import TrialBalance from './components/books/trialbalance';
+import AccountLedger from './components/books/accountledger';
 import ReceiptEntry from './components/accounts/receiptentry';
 import SaleBillList from './components/sale/salebilllist';
 import CustomerLedger from './components/accounts/customerledger';
@@ -145,6 +148,9 @@ function App() {
                 <Route path="/price-update" element={<Price />} />
                 <Route path="/invoice-setting" element={<InvoiceSetting />} />
                 <Route path="/entry-settings" element={<EntryPreferences />} />
+                <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
+                <Route path="/trial-balance" element={<TrialBalance />} />
+                <Route path="/account-ledger" element={<AccountLedger />} />
                 <Route path="/receipts" element={<ReceiptEntry />} />
                 <Route path="/customer-ledger" element={<CustomerLedger />} />
                 <Route path="/suppliers" element={<SupplierAdd />} />

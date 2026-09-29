@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { fetchJson } from '../../api';
 import '../accounts/accounts.css';
 import './reports.css';
+import EcomImport from './ecomImport';
 
 const money = (n) => Number(n || 0).toFixed(2);
 const num = (v) => Number(v) || 0;
@@ -213,7 +214,7 @@ const GstReports = () => {
       const c = data.counts;
       setGstr1({
         type: 'success',
-        text: `Downloaded GSTR-1 for ${data.fp.slice(0, 2)}/${data.fp.slice(2)}: ${data.billCount} bill(s), ${data.creditNoteCount} credit note(s) — B2B ${c.b2b}, B2CL ${c.b2cl}, B2CS ${c.b2cs} row(s), CDNR ${c.cdnr}, CDNUR ${c.cdnur}, HSN ${c.hsn} row(s).`,
+        text: `Downloaded GSTR-1 for ${data.fp.slice(0, 2)}/${data.fp.slice(2)}: ${data.billCount} bill(s), ${data.creditNoteCount} credit note(s)${data.ecomMonths ? `, ${data.ecomMonths} marketplace month(s)` : ''} — B2B ${c.b2b}, B2CL ${c.b2cl}, B2CS ${c.b2cs} row(s), CDNR ${c.cdnr}, CDNUR ${c.cdnur}, HSN ${c.hsn} row(s)${c.ecom ? `, e-commerce (Table 14) ${c.ecom} operator(s)` : ''}.`,
         list: data.warnings,
         listTitle: 'Check these before uploading — the portal may reject them:',
       });
@@ -397,6 +398,7 @@ const GstReports = () => {
             <input ref={gstr1InputRef} type="file" accept=".json" onChange={importGstr1} disabled={gstr1Busy} />
           </label>
         </div>
+        <EcomImport range={range} />
         {gstr1Check && <Gstr1Checklist check={gstr1Check} />}
         {gstr1 && (
           <div className={`acc-status${gstr1.type === 'error' ? ' error' : ''}`}>
@@ -418,7 +420,10 @@ const GstReports = () => {
               <div className="reports-stat">
                 <span>Outward tax (output)</span>
                 <strong>{money(report.outward.totals.cgst + report.outward.totals.sgst + report.outward.totals.igst)}</strong>
-                <small>{report.outward.billCount} bill{report.outward.billCount === 1 ? '' : 's'}, {report.outward.creditNoteCount} credit note{report.outward.creditNoteCount === 1 ? '' : 's'}</small>
+                <small>
+                  {report.outward.billCount} bill{report.outward.billCount === 1 ? '' : 's'}, {report.outward.creditNoteCount} credit note{report.outward.creditNoteCount === 1 ? '' : 's'}
+                  {report.outward.ecomMonthCount ? ` + marketplace sales ${money(report.outward.ecomTaxableValue)}` : ''}
+                </small>
               </div>
               <div className="reports-stat">
                 <span>Inward tax (ITC available)</span>

@@ -6,6 +6,16 @@ const Counter = require('../model/countermodule');
 const InvoiceSetting = require('../model/invoice_settings');
 const { buildGstr1, parseGstr1, toReturnPeriod, cleanGstin } = require('../utils/gstr1');
 const { checkGstr1 } = require('../utils/gstr1Checklist');
+const EcomSale = require('../model/ecomsalemodule');
+const { parseEcomReport } = require('../utils/ecomReport');
+
+// Marketplace months that overlap the From–To period.
+const ecomFilter = (req) => {
+  const filter = { businessId: req.auth.businessId };
+  if (req.query.startDate) filter.periodEnd = { $gte: new Date(`${req.query.startDate}T00:00:00.000Z`) };
+  if (req.query.endDate) filter.periodStart = { $lte: new Date(`${req.query.endDate}T23:59:59.999Z`) };
+  return filter;
+};
 
 // The GSTIN the return is filed under. Signup's GSTIN field is optional and
 // can't be edited later, so most businesses only have it on the letterhead in
@@ -52,8 +62,9 @@ exports.exportGstr1 = async (req, res) => {
       : [];
 
     const fp = toReturnPeriod(new Date(`${req.query.endDate}T12:00:00.000Z`));
-    const result = buildGstr1({ business, sales, creditNotes, originalSales, fp });
-    res.json({ ...result, fp, billCount: sales.length, creditNoteCount: creditNotes.length });
+    const ecomSales = await EcomSale.find(ecomFilter(req)).lean();
+    const result = buildGstr1({ business, sales, creditNotes, originalSales, ecomSales, fp });
+    res.json({ ...result, fp, billCount: sales.length, creditNoteCount: creditNotes.length, ecomMonths: ecomSales.length });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -71,6 +82,51 @@ exports.checkGstr1 = async (req, res) => {
       CreditNote.find(filter).sort({ 'billDetails.date': 1 }).lean(),
     ]);
     res.json(checkGstr1({ business, sales, creditNotes }));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// POST /api/reports/gst/ecom/import[?preview=1]  body: { sales: [...], returns: [...], files: [names] }
+// Reads a marketplace's monthly TCS sales (+ returns) report into a net month
+// summary for GSTR-1. With ?preview=1 nothing is saved. Importing the same
+// operator's month again replaces the earlier import.
+exports.importEcom = async (req, res) => {
+  try {
+    const businessId = req.auth.businessId;
+    const { gstin } = await sellerProfile(businessId);
+    if (!cleanGstin(gstin)) return res.status(400).json({ error: NO_GSTIN });
+    const summary = parseEcomReport({ sales: req.body?.sales, returns: req.body?.returns || [], sellerGstin: gstin });
+    const existing = await EcomSale.findOne({ businessId, fp: summary.fp, etin: summary.etin }, '_id updatedAt').lean();
+    if (req.query.preview) return res.json({ preview: true, replaces: Boolean(existing), ...summary });
+
+    const { warnings, ...data } = summary;
+    const saved = await EcomSale.findOneAndUpdate(
+      { businessId, fp: summary.fp, etin: summary.etin },
+      { ...data, businessId, files: (req.body.files || []).map(String).slice(0, 5) },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    );
+    res.status(existing ? 200 : 201).json({ preview: false, replaced: Boolean(existing), warnings, saved });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// GET /api/reports/gst/ecom?startDate=&endDate= — imported marketplace months in the period.
+exports.listEcom = async (req, res) => {
+  try {
+    res.json(await EcomSale.find(ecomFilter(req)).sort({ periodStart: -1, etin: 1 }).lean());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// DELETE /api/reports/gst/ecom/:id
+exports.deleteEcom = async (req, res) => {
+  try {
+    const removed = await EcomSale.findOneAndDelete({ _id: req.params.id, businessId: req.auth.businessId });
+    if (!removed) return res.status(404).json({ error: 'Import not found.' });
+    res.json({ ok: true });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

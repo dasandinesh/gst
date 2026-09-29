@@ -23,6 +23,14 @@
 .reports-file-upload { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #64748b; font-weight: 600; }
 .reports-file-upload input[type="file"] { font: inherit; font-size: 12px; }
 
+/* Marketplace (e-commerce) sales import, inside the GSTR-1 card. */
+.ecom-import { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #cbd5e1; }
+.ecom-import h2 { margin: 0 0 4px; font-size: 16px; color: #0f172a; }
+.ecom-preview { margin-top: 10px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+.ecom-warnings { margin: 6px 0 10px; padding-left: 18px; color: #92400e; font-size: 12.5px; }
+.ecom-list-title { margin: 14px 0 6px; font-size: 13px; }
+.ecom-muted { color: #64748b; font-size: 12px; }
+
 /* GSTR-1 "Check before export" results. */
 .gstr1-check { margin-top: 10px; }
 .gstr1-check-ok { background: #e6f4ee; color: #15593e; font-weight: 600; }
