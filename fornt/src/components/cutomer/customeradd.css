@@ -23,4 +23,8 @@
 .primary-button:disabled { cursor: wait; opacity: .7; }
 .secondary-button { color: #285749; background: #fff; border: 1px solid #9bb5ac; }
 .secondary-button:hover { background: #f1f7f4; }
+/* Hint + "Copy from address above" button at the top of the Shipping address section. */
+.customer-ship-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 0 14px; font-size: 13px; color: #5e706a; }
+.customer-ship-hint button { flex: 0 0 auto; padding: 7px 12px; font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; }
+@media (max-width: 600px) { .customer-ship-hint { flex-direction: column; align-items: flex-start; } }
 @media (max-width: 600px) { .customer-add-page { padding: 20px 12px; } .customer-add-card { padding: 22px 18px; } .customer-form-grid { grid-template-columns: 1fr; } .customer-field-wide { grid-column: auto; } }

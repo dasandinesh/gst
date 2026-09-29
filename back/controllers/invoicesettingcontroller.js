@@ -1,11 +1,15 @@
 ﻿const InvoiceSetting = require('../model/invoice_settings');
 const Counter = require('../model/countermodule');
 const { financialYearLabel } = require('../utils/financialYear');
+const { normalizeGstin } = require('../utils/gstin');
+
+// Validates/upper-cases the GSTIN only when the request actually sends one.
+const withCleanGstin = (body = {}) => ('gstin' in body ? { ...body, gstin: normalizeGstin(body.gstin) } : body);
 
 exports.createInvoiceSetting = async (req, res) => {
     try {
         const count = await InvoiceSetting.countDocuments({ businessId: req.auth.businessId });
-        const setting = await InvoiceSetting.create({ ...(req.body || {}), businessId: req.auth.businessId, isDefault: count === 0 });
+        const setting = await InvoiceSetting.create({ ...withCleanGstin(req.body || {}), businessId: req.auth.businessId, isDefault: count === 0 });
         res.status(201).json(setting);
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -52,7 +56,7 @@ exports.updateInvoiceSetting = async (req, res) => {
     try {
         const setting = await InvoiceSetting.findOneAndUpdate(
             { _id: req.params.id, businessId: req.auth.businessId },
-            req.body || {},
+            withCleanGstin(req.body || {}),
             { new: true, runValidators: true }
         );
         if (!setting) return res.status(404).json({ error: 'Invoice setting not found.' });

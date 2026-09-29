@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { fetchJson } from '../../api';
 import './customerlist.css';
+import { ShippingAddressFields, withShippingDefaults, formatAddress, hasAddress } from '../common/shippingAddress';
 
 const emptyCustomer = {
   name: '', phone: '', door: '', street: '', area: '', district: '', state: '', pincode: '', oldBalance: 0,
@@ -43,7 +44,7 @@ const CustomerList = () => {
   const openEdit = (customer) => {
     setMessage({ type: '', text: '' });
     setEditingCustomer(customer);
-    reset({ ...emptyCustomer, ...customer });
+    reset(withShippingDefaults({ ...emptyCustomer, ...customer }));
   };
 
   const closeEdit = () => {
@@ -120,7 +121,10 @@ const CustomerList = () => {
                   <tr key={customer._id}>
                     <td className="customer-name">{customer.name}</td>
                     <td>{customer.phone || '—'}</td>
-                    <td className="customer-address">{address || '—'}</td>
+                    <td className="customer-address">
+                      {address || '—'}
+                      {hasAddress(customer.shippingAddress) && <small className="customer-ship-line">Ships to: {formatAddress(customer.shippingAddress)}</small>}
+                    </td>
                     <td>₹{Number(customer.oldBalance || 0).toFixed(2)}</td>
                     <td className="customer-actions">
                       <button type="button" className="view-button" onClick={() => navigate(`/customer-list/${customer._id}`)}>View</button>
@@ -148,6 +152,9 @@ const CustomerList = () => {
               <label><span>District</span><input type="text" {...register('district')} /></label>
               <label><span>State</span><input type="text" {...register('state')} /></label>
               <label><span>Pincode</span><input type="text" inputMode="numeric" {...register('pincode')} /></label>
+              <h3 className="customer-edit-subheading">Shipping address <small>(leave empty if same as above)</small></h3>
+              <ShippingAddressFields register={register} />
+              <h3 className="customer-edit-subheading">Other details</h3>
               <label><span>Balance</span><input type="number" step="0.01" {...register('oldBalance')} /></label>
               <label><span>GST number</span><input type="text" {...register('gst_no')} /></label>
               <label><span>PAN / IT number</span><input type="text" {...register('pan_it_no')} /></label>

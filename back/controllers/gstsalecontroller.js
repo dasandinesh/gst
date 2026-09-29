@@ -1,15 +1,18 @@
-﻿const GstSale = require('../model/salesmodule');
+const GstSale = require('../model/salesmodule');
 const Counter = require('../model/countermodule');
 const Customer = require('../model/customermodule');
 const Product = require('../model/productmodule');
 const { financialYearLabel } = require('../utils/financialYear');
+const { cleanBillShippingAddress } = require('../model/addressSchema');
+const { cleanTransport } = require('../utils/transport');
 
 const number = (value) => Number(value) || 0;
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // How much a bill moves the customer's running balance: total owed minus what was paid on it.
-const saleImpact = (bill = {}) => number(bill.billAmount) - number(bill.cash) - number(bill.credit);
+// GSTR-1-imported bills never moved it (see salesmodule.js), so they count as zero.
+const saleImpact = (bill = {}) => (bill.imported ? 0 : number(bill.grandTotal) - number(bill.cash) - number(bill.credit));
 
 const applyCustomerBalance = async (businessId, name, delta) => {
   if (!name) return { before: 0, after: 0 };
@@ -24,8 +27,8 @@ const applyCustomerBalance = async (businessId, name, delta) => {
 // Sales draw down stock, matched to the product master by exact (case-insensitive)
 // name — same best-effort matching applyCustomerBalance uses for the customer.
 // sign is -1 to remove stock (create) or +1 to reverse it.
-const applyStock = async (businessId, products = [], sign = -1) => {
-  await Promise.all(products.map((p) => {
+const applyStock = async (businessId, items = [], sign = -1) => {
+  await Promise.all(items.map((p) => {
     const qty = number(p.quantity);
     if (!p.name || !qty) return null;
     return Product.updateOne(
@@ -36,12 +39,12 @@ const applyStock = async (businessId, products = [], sign = -1) => {
 };
 
 // GST splits CGST+SGST for intra-state bills, or IGST alone for inter-state bills.
-// gstMode 'inclusive' means `price` already includes GST; 'exclusive' means GST is added on top.
+// gstMode 'inclusive' means `rate` already includes GST; 'exclusive' means GST is added on top.
 const prepareLine = (item, taxType) => {
   const quantity = number(item.quantity);
-  const price = number(item.price);
+  const rate = number(item.rate);
   const gstRate = number(item.gstRate);
-  const gross = quantity * price;
+  const gross = quantity * rate;
   const isInclusive = item.gstMode === 'inclusive';
   const taxableValue = isInclusive ? gross / (1 + gstRate / 100) : gross;
   const gstAmount = isInclusive ? gross - taxableValue : (taxableValue * gstRate) / 100;
@@ -52,7 +55,7 @@ const prepareLine = (item, taxType) => {
     hsnCode: item.hsnCode || '',
     quantity,
     unit: item.unit || '',
-    price,
+    rate,
     gstMode: isInclusive ? 'inclusive' : 'exclusive',
     gstRate,
     taxableValue: round2(taxableValue),
@@ -62,42 +65,42 @@ const prepareLine = (item, taxType) => {
     cgstAmount: interState ? 0 : round2(gstAmount / 2),
     sgstAmount: interState ? 0 : round2(gstAmount / 2),
     igstAmount: interState ? round2(gstAmount) : 0,
-    total: round2(taxableValue + gstAmount)
+    amount: round2(taxableValue + gstAmount)
   };
 };
 
 const prepareSale = (body = {}) => {
-  const taxType = body.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST_SGST';
-  const products = Array.isArray(body.products)
-    ? body.products.filter((item) => item && item.name && number(item.quantity) > 0).map((item) => prepareLine(item, taxType))
+  const taxType = body.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST_SGST';
+  const items = Array.isArray(body.items)
+    ? body.items.filter((item) => item && item.name && number(item.quantity) > 0).map((item) => prepareLine(item, taxType))
     : [];
 
-  const subtotal = round2(products.reduce((sum, p) => sum + p.taxableValue, 0));
-  const totalCgst = round2(products.reduce((sum, p) => sum + p.cgstAmount, 0));
-  const totalSgst = round2(products.reduce((sum, p) => sum + p.sgstAmount, 0));
-  const totalIgst = round2(products.reduce((sum, p) => sum + p.igstAmount, 0));
+  const totalTaxableValue = round2(items.reduce((sum, p) => sum + p.taxableValue, 0));
+  const totalCgst = round2(items.reduce((sum, p) => sum + p.cgstAmount, 0));
+  const totalSgst = round2(items.reduce((sum, p) => sum + p.sgstAmount, 0));
+  const totalIgst = round2(items.reduce((sum, p) => sum + p.igstAmount, 0));
   const totalGst = round2(totalCgst + totalSgst + totalIgst);
-  const rawTotal = subtotal + totalGst;
-  const billAmount = Math.round(rawTotal);
-  const roundOff = round2(billAmount - rawTotal);
+  const rawTotal = totalTaxableValue + totalGst;
+  const grandTotal = Math.round(rawTotal);
+  const roundOff = round2(grandTotal - rawTotal);
 
   const gstTotals = {};
-  products.forEach((p) => {
+  items.forEach((p) => {
     const key = String(p.gstRate);
-    if (!gstTotals[key]) gstTotals[key] = { taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+    if (!gstTotals[key]) gstTotals[key] = { taxableValue: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0 };
     gstTotals[key].taxableValue += p.taxableValue;
-    gstTotals[key].cgst += p.cgstAmount;
-    gstTotals[key].sgst += p.sgstAmount;
-    gstTotals[key].igst += p.igstAmount;
+    gstTotals[key].cgstAmount += p.cgstAmount;
+    gstTotals[key].sgstAmount += p.sgstAmount;
+    gstTotals[key].igstAmount += p.igstAmount;
   });
   Object.values(gstTotals).forEach((totals) => {
     totals.taxableValue = round2(totals.taxableValue);
-    totals.cgst = round2(totals.cgst);
-    totals.sgst = round2(totals.sgst);
-    totals.igst = round2(totals.igst);
+    totals.cgstAmount = round2(totals.cgstAmount);
+    totals.sgstAmount = round2(totals.sgstAmount);
+    totals.igstAmount = round2(totals.igstAmount);
   });
 
-  const bill = body.bill_details || {};
+  const bill = body.billDetails || {};
   return {
     customer: {
       name: body.customer?.name || '',
@@ -105,23 +108,29 @@ const prepareSale = (body = {}) => {
       gstin: body.customer?.gstin || '',
       state: body.customer?.state || ''
     },
-    products,
+    shippingAddress: cleanBillShippingAddress(body.shippingAddress),
+    items,
     gstTotals,
-    bill_details: {
-      billNumber: bill.billNumber || '',
+    billDetails: {
+      invoiceNumber: bill.invoiceNumber || '',
       date: bill.date || new Date(),
       taxType,
       placeOfSupply: bill.placeOfSupply || '',
-      subtotal,
+      deliveryChallanNumber: (bill.deliveryChallanNumber || '').trim(),
+      deliveryChallanDate: bill.deliveryChallanDate || undefined,
+      purchaseOrderNumber: (bill.purchaseOrderNumber || '').trim(),
+      purchaseOrderDate: bill.purchaseOrderDate || undefined,
+      transport: cleanTransport(bill.transport),
+      totalTaxableValue,
       totalCgst,
       totalSgst,
       totalIgst,
       totalGst,
       roundOff,
-      billAmount,
+      grandTotal,
       cash: number(bill.cash),
       credit: number(bill.credit),
-      remark: bill.remark || ''
+      notes: bill.notes || ''
     }
   };
 };
@@ -129,18 +138,18 @@ const prepareSale = (body = {}) => {
 exports.createGstSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
-    if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
+    if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
     const businessId = req.auth.businessId;
     data.businessId = businessId;
-    if (!data.bill_details.billNumber) {
-      const fy = financialYearLabel(data.bill_details.date);
+    if (!data.billDetails.invoiceNumber) {
+      const fy = financialYearLabel(data.billDetails.date);
       const seq = await Counter.next(`${businessId}:gstsale:${fy}`);
-      data.bill_details.billNumber = `GB/${fy}/${String(seq).padStart(4, '0')}`;
+      data.billDetails.invoiceNumber = `GB/${fy}/${String(seq).padStart(4, '0')}`;
     }
-    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
-    data.bill_details.oldBalance = bal.before;
-    data.bill_details.newBalance = bal.after;
-    await applyStock(businessId, data.products, -1);
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.billDetails));
+    data.billDetails.openingBalance = bal.before;
+    data.billDetails.closingBalance = bal.after;
+    await applyStock(businessId, data.items, -1);
     const sale = await GstSale.create(data);
     res.status(201).json(sale);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -151,17 +160,17 @@ exports.getGstSales = async (req, res) => {
     const filter = { businessId: req.auth.businessId };
     if (req.query.q && req.query.q.trim()) {
       const rx = { $regex: escapeRegex(req.query.q.trim()), $options: 'i' };
-      filter.$or = [{ 'customer.name': rx }, { 'bill_details.billNumber': rx }];
+      filter.$or = [{ 'customer.name': rx }, { 'billDetails.invoiceNumber': rx }, { 'billDetails.purchaseOrderNumber': rx }, { 'billDetails.deliveryChallanNumber': rx }, { 'billDetails.transport.vehicleNumber': rx }];
     }
     if (req.query.taxType === 'IGST' || req.query.taxType === 'CGST_SGST') {
-      filter['bill_details.taxType'] = req.query.taxType;
+      filter['billDetails.taxType'] = req.query.taxType;
     }
     if (req.query.startDate || req.query.endDate) {
-      filter['bill_details.date'] = {};
-      if (req.query.startDate) filter['bill_details.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
-      if (req.query.endDate) filter['bill_details.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
+      filter['billDetails.date'] = {};
+      if (req.query.startDate) filter['billDetails.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
+      if (req.query.endDate) filter['billDetails.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
     }
-    const sort = { 'bill_details.date': -1, createdAt: -1 };
+    const sort = { 'billDetails.date': -1, createdAt: -1 };
 
     // Paginated report mode — opt-in via ?page=, so existing callers that expect a
     // bare array (the entry page's quick recent-bills panel) are unaffected.
@@ -190,18 +199,18 @@ exports.getGstSaleById = async (req, res) => {
 exports.updateGstSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
-    if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
+    if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
     const businessId = req.auth.businessId;
     const prev = await GstSale.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Bill not found.' });
 
-    await applyCustomerBalance(businessId, prev.customer?.name, -saleImpact(prev.bill_details));
-    await applyStock(businessId, prev.products, 1);
-    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
-    await applyStock(businessId, data.products, -1);
-    data.bill_details.oldBalance = bal.before;
-    data.bill_details.newBalance = bal.after;
-    data.bill_details.billNumber = prev.bill_details?.billNumber || data.bill_details.billNumber;
+    await applyCustomerBalance(businessId, prev.customer?.name, -saleImpact(prev.billDetails));
+    await applyStock(businessId, prev.items, 1);
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.billDetails));
+    await applyStock(businessId, data.items, -1);
+    data.billDetails.openingBalance = bal.before;
+    data.billDetails.closingBalance = bal.after;
+    data.billDetails.invoiceNumber = prev.billDetails?.invoiceNumber || data.billDetails.invoiceNumber;
 
     const sale = await GstSale.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(sale);
@@ -213,8 +222,8 @@ exports.deleteGstSale = async (req, res) => {
     const businessId = req.auth.businessId;
     const sale = await GstSale.findOneAndDelete({ _id: req.params.id, businessId });
     if (!sale) return res.status(404).json({ error: 'Bill not found.' });
-    await applyCustomerBalance(businessId, sale.customer?.name, -saleImpact(sale.bill_details));
-    await applyStock(businessId, sale.products, 1);
+    await applyCustomerBalance(businessId, sale.customer?.name, -saleImpact(sale.billDetails));
+    await applyStock(businessId, sale.items, 1);
     res.json({ message: 'GST bill deleted successfully.' });
   } catch (error) { res.status(400).json({ error: error.message }); }
 };

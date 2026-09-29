@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
-// One product line on a credit note — same shape as a GST sale line; taxable
+// One line item on a credit note — same shape as a GST sale line; taxable
 // value and CGST/SGST/IGST are computed server-side, never trusted from the client.
-const creditNoteProductSchema = new mongoose.Schema({
+const creditNoteItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   hsnCode: { type: String, default: '' },
   quantity: { type: Number, required: true, min: 0 },
   unit: { type: String, default: '' },
-  price: { type: Number, required: true, min: 0 },
+  rate: { type: Number, required: true, min: 0 },
   gstMode: { type: String, enum: ['inclusive', 'exclusive'], default: 'exclusive' },
   gstRate: { type: Number, default: 0, min: 0, max: 100 },
   taxableValue: { type: Number, default: 0 },
@@ -17,15 +17,15 @@ const creditNoteProductSchema = new mongoose.Schema({
   cgstAmount: { type: Number, default: 0 },
   sgstAmount: { type: Number, default: 0 },
   igstAmount: { type: Number, default: 0 },
-  total: { type: Number, default: 0 }
+  amount: { type: Number, default: 0 }
 }, { _id: false });
 
 // Per-GST-rate breakup (e.g. "5", "12") — used for the tax summary printed on the note.
 const creditNoteRateTotalsSchema = new mongoose.Schema({
   taxableValue: { type: Number, default: 0 },
-  cgst: { type: Number, default: 0 },
-  sgst: { type: Number, default: 0 },
-  igst: { type: Number, default: 0 }
+  cgstAmount: { type: Number, default: 0 },
+  sgstAmount: { type: Number, default: 0 },
+  igstAmount: { type: Number, default: 0 }
 }, { _id: false });
 
 // GST rule 53 requires a credit note to reference the original invoice it corrects.
@@ -43,16 +43,18 @@ const creditNoteBillDetailsSchema = new mongoose.Schema({
   taxType: { type: String, enum: ['CGST_SGST', 'IGST'], default: 'CGST_SGST' },
   placeOfSupply: { type: String, default: '' },
   reason: { type: String, enum: CREDIT_NOTE_REASONS, default: 'Sales Return' },
-  subtotal: { type: Number, default: 0 },
+  totalTaxableValue: { type: Number, default: 0 },
   totalCgst: { type: Number, default: 0 },
   totalSgst: { type: Number, default: 0 },
   totalIgst: { type: Number, default: 0 },
   totalGst: { type: Number, default: 0 },
   roundOff: { type: Number, default: 0 },
-  creditNoteAmount: { type: Number, default: 0 },
-  oldBalance: { type: Number, default: 0 },
-  newBalance: { type: Number, default: 0 },
-  remark: { type: String, default: '' }
+  grandTotal: { type: Number, default: 0 },
+  openingBalance: { type: Number, default: 0 },
+  closingBalance: { type: Number, default: 0 },
+  notes: { type: String, default: '' },
+  // Created by GSTR-1 JSON import — see salesmodule.js.
+  imported: { type: Boolean, default: false }
 }, { _id: false });
 
 const creditNoteSchema = new mongoose.Schema({
@@ -64,12 +66,12 @@ const creditNoteSchema = new mongoose.Schema({
     gstin: { type: String, default: '' },
     state: { type: String, default: '' }
   },
-  products: [creditNoteProductSchema],
+  items: [creditNoteItemSchema],
   gstTotals: { type: Map, of: creditNoteRateTotalsSchema },
-  bill_details: creditNoteBillDetailsSchema
+  billDetails: creditNoteBillDetailsSchema
 }, { timestamps: true });
 
-creditNoteSchema.index({ businessId: 1, 'bill_details.creditNoteNumber': 1 }, { unique: true });
+creditNoteSchema.index({ businessId: 1, 'billDetails.creditNoteNumber': 1 }, { unique: true });
 
 const CreditNoteModel = mongoose.model('CreditNote', creditNoteSchema);
 CreditNoteModel.creditNoteSchema = creditNoteSchema;

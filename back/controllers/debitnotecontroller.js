@@ -1,4 +1,4 @@
-﻿const DebitNote = require('../model/debitnotemodule');
+const DebitNote = require('../model/debitnotemodule');
 const Purchase = require('../model/purchasemodule');
 const Counter = require('../model/countermodule');
 const Supplier = require('../model/suppliermodule');
@@ -23,8 +23,8 @@ const applySupplierBalance = async (businessId, name, delta) => {
 // A debit note (typically a purchase return) sends stock back out, matched to the
 // product master by exact (case-insensitive) name, same as sales/purchases/credit
 // notes. sign is -1 to remove stock (create) or +1 to reverse it (delete/update/undo).
-const applyStock = async (businessId, products = [], sign = -1) => {
-  await Promise.all(products.map((p) => {
+const applyStock = async (businessId, items = [], sign = -1) => {
+  await Promise.all(items.map((p) => {
     const qty = number(p.quantity);
     if (!p.name || !qty) return null;
     return Product.updateOne(
@@ -37,9 +37,9 @@ const applyStock = async (businessId, products = [], sign = -1) => {
 // Same GST split purchases use: CGST+SGST for intra-state bills, IGST alone for inter-state.
 const prepareLine = (item, taxType) => {
   const quantity = number(item.quantity);
-  const price = number(item.price);
+  const rate = number(item.rate);
   const gstRate = number(item.gstRate);
-  const gross = quantity * price;
+  const gross = quantity * rate;
   const isInclusive = item.gstMode === 'inclusive';
   const taxableValue = isInclusive ? gross / (1 + gstRate / 100) : gross;
   const gstAmount = isInclusive ? gross - taxableValue : (taxableValue * gstRate) / 100;
@@ -50,7 +50,7 @@ const prepareLine = (item, taxType) => {
     hsnCode: item.hsnCode || '',
     quantity,
     unit: item.unit || '',
-    price,
+    rate,
     gstMode: isInclusive ? 'inclusive' : 'exclusive',
     gstRate,
     taxableValue: round2(taxableValue),
@@ -60,42 +60,42 @@ const prepareLine = (item, taxType) => {
     cgstAmount: interState ? 0 : round2(gstAmount / 2),
     sgstAmount: interState ? 0 : round2(gstAmount / 2),
     igstAmount: interState ? round2(gstAmount) : 0,
-    total: round2(taxableValue + gstAmount)
+    amount: round2(taxableValue + gstAmount)
   };
 };
 
 const prepareDebitNote = (body = {}) => {
-  const taxType = body.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST_SGST';
-  const products = Array.isArray(body.products)
-    ? body.products.filter((item) => item && item.name && number(item.quantity) > 0).map((item) => prepareLine(item, taxType))
+  const taxType = body.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST_SGST';
+  const items = Array.isArray(body.items)
+    ? body.items.filter((item) => item && item.name && number(item.quantity) > 0).map((item) => prepareLine(item, taxType))
     : [];
 
-  const subtotal = round2(products.reduce((sum, p) => sum + p.taxableValue, 0));
-  const totalCgst = round2(products.reduce((sum, p) => sum + p.cgstAmount, 0));
-  const totalSgst = round2(products.reduce((sum, p) => sum + p.sgstAmount, 0));
-  const totalIgst = round2(products.reduce((sum, p) => sum + p.igstAmount, 0));
+  const totalTaxableValue = round2(items.reduce((sum, p) => sum + p.taxableValue, 0));
+  const totalCgst = round2(items.reduce((sum, p) => sum + p.cgstAmount, 0));
+  const totalSgst = round2(items.reduce((sum, p) => sum + p.sgstAmount, 0));
+  const totalIgst = round2(items.reduce((sum, p) => sum + p.igstAmount, 0));
   const totalGst = round2(totalCgst + totalSgst + totalIgst);
-  const rawTotal = subtotal + totalGst;
-  const debitNoteAmount = Math.round(rawTotal);
-  const roundOff = round2(debitNoteAmount - rawTotal);
+  const rawTotal = totalTaxableValue + totalGst;
+  const grandTotal = Math.round(rawTotal);
+  const roundOff = round2(grandTotal - rawTotal);
 
   const gstTotals = {};
-  products.forEach((p) => {
+  items.forEach((p) => {
     const key = String(p.gstRate);
-    if (!gstTotals[key]) gstTotals[key] = { taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
+    if (!gstTotals[key]) gstTotals[key] = { taxableValue: 0, cgstAmount: 0, sgstAmount: 0, igstAmount: 0 };
     gstTotals[key].taxableValue += p.taxableValue;
-    gstTotals[key].cgst += p.cgstAmount;
-    gstTotals[key].sgst += p.sgstAmount;
-    gstTotals[key].igst += p.igstAmount;
+    gstTotals[key].cgstAmount += p.cgstAmount;
+    gstTotals[key].sgstAmount += p.sgstAmount;
+    gstTotals[key].igstAmount += p.igstAmount;
   });
   Object.values(gstTotals).forEach((totals) => {
     totals.taxableValue = round2(totals.taxableValue);
-    totals.cgst = round2(totals.cgst);
-    totals.sgst = round2(totals.sgst);
-    totals.igst = round2(totals.igst);
+    totals.cgstAmount = round2(totals.cgstAmount);
+    totals.sgstAmount = round2(totals.sgstAmount);
+    totals.igstAmount = round2(totals.igstAmount);
   });
 
-  const bill = body.bill_details || {};
+  const bill = body.billDetails || {};
   return {
     originalBill: {
       billId: body.originalBill?.billId || undefined,
@@ -108,45 +108,45 @@ const prepareDebitNote = (body = {}) => {
       gstin: body.supplier?.gstin || '',
       state: body.supplier?.state || ''
     },
-    products,
+    items,
     gstTotals,
-    bill_details: {
+    billDetails: {
       debitNoteNumber: bill.debitNoteNumber || '',
       date: bill.date || new Date(),
       taxType,
       placeOfSupply: bill.placeOfSupply || '',
       reason: bill.reason || 'Purchase Return',
-      subtotal,
+      totalTaxableValue,
       totalCgst,
       totalSgst,
       totalIgst,
       totalGst,
       roundOff,
-      debitNoteAmount,
-      remark: bill.remark || ''
+      grandTotal,
+      notes: bill.notes || ''
     }
   };
 };
 
 // Amount a debit note removes from the supplier's running payable balance.
-const debitImpact = (bill = {}) => -number(bill.debitNoteAmount);
+const debitImpact = (bill = {}) => -number(bill.grandTotal);
 
 exports.createDebitNote = async (req, res) => {
   try {
     const data = prepareDebitNote(req.body);
-    if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the debit note.' });
+    if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the debit note.' });
     if (!data.originalBill.billNumber) return res.status(400).json({ error: 'A debit note must reference the original purchase bill number.' });
     const businessId = req.auth.businessId;
     data.businessId = businessId;
-    if (!data.bill_details.debitNoteNumber) {
-      const fy = financialYearLabel(data.bill_details.date);
+    if (!data.billDetails.debitNoteNumber) {
+      const fy = financialYearLabel(data.billDetails.date);
       const seq = await Counter.next(`${businessId}:debitnote:${fy}`);
-      data.bill_details.debitNoteNumber = `DN/${fy}/${String(seq).padStart(4, '0')}`;
+      data.billDetails.debitNoteNumber = `DN/${fy}/${String(seq).padStart(4, '0')}`;
     }
-    const bal = await applySupplierBalance(businessId, data.supplier.name, debitImpact(data.bill_details));
-    data.bill_details.oldBalance = bal.before;
-    data.bill_details.newBalance = bal.after;
-    await applyStock(businessId, data.products, -1);
+    const bal = await applySupplierBalance(businessId, data.supplier.name, debitImpact(data.billDetails));
+    data.billDetails.openingBalance = bal.before;
+    data.billDetails.closingBalance = bal.after;
+    await applyStock(businessId, data.items, -1);
     const note = await DebitNote.create(data);
     res.status(201).json(note);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -157,14 +157,14 @@ exports.getDebitNotes = async (req, res) => {
     const filter = { businessId: req.auth.businessId };
     if (req.query.q && req.query.q.trim()) {
       const rx = { $regex: escapeRegex(req.query.q.trim()), $options: 'i' };
-      filter.$or = [{ 'supplier.name': rx }, { 'bill_details.debitNoteNumber': rx }, { 'originalBill.billNumber': rx }];
+      filter.$or = [{ 'supplier.name': rx }, { 'billDetails.debitNoteNumber': rx }, { 'originalBill.billNumber': rx }];
     }
     if (req.query.startDate || req.query.endDate) {
-      filter['bill_details.date'] = {};
-      if (req.query.startDate) filter['bill_details.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
-      if (req.query.endDate) filter['bill_details.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
+      filter['billDetails.date'] = {};
+      if (req.query.startDate) filter['billDetails.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
+      if (req.query.endDate) filter['billDetails.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
     }
-    const sort = { 'bill_details.date': -1, createdAt: -1 };
+    const sort = { 'billDetails.date': -1, createdAt: -1 };
 
     // Paginated report mode — opt-in via ?page=, same convention as sales/purchases/credit notes.
     if (req.query.page) {
@@ -192,18 +192,18 @@ exports.getDebitNoteById = async (req, res) => {
 exports.updateDebitNote = async (req, res) => {
   try {
     const data = prepareDebitNote(req.body);
-    if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the debit note.' });
+    if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the debit note.' });
     const businessId = req.auth.businessId;
     const prev = await DebitNote.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Debit note not found.' });
 
-    await applySupplierBalance(businessId, prev.supplier?.name, -debitImpact(prev.bill_details));
-    await applyStock(businessId, prev.products, 1);
-    const bal = await applySupplierBalance(businessId, data.supplier.name, debitImpact(data.bill_details));
-    await applyStock(businessId, data.products, -1);
-    data.bill_details.oldBalance = bal.before;
-    data.bill_details.newBalance = bal.after;
-    data.bill_details.debitNoteNumber = prev.bill_details?.debitNoteNumber || data.bill_details.debitNoteNumber;
+    await applySupplierBalance(businessId, prev.supplier?.name, -debitImpact(prev.billDetails));
+    await applyStock(businessId, prev.items, 1);
+    const bal = await applySupplierBalance(businessId, data.supplier.name, debitImpact(data.billDetails));
+    await applyStock(businessId, data.items, -1);
+    data.billDetails.openingBalance = bal.before;
+    data.billDetails.closingBalance = bal.after;
+    data.billDetails.debitNoteNumber = prev.billDetails?.debitNoteNumber || data.billDetails.debitNoteNumber;
 
     const note = await DebitNote.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(note);
@@ -215,8 +215,8 @@ exports.deleteDebitNote = async (req, res) => {
     const businessId = req.auth.businessId;
     const note = await DebitNote.findOneAndDelete({ _id: req.params.id, businessId });
     if (!note) return res.status(404).json({ error: 'Debit note not found.' });
-    await applySupplierBalance(businessId, note.supplier?.name, -debitImpact(note.bill_details));
-    await applyStock(businessId, note.products, 1);
+    await applySupplierBalance(businessId, note.supplier?.name, -debitImpact(note.billDetails));
+    await applyStock(businessId, note.items, 1);
     res.json({ message: 'Debit note deleted successfully.' });
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
@@ -226,7 +226,7 @@ exports.findOriginalBill = async (req, res) => {
   try {
     const billNumber = String(req.query.billNumber || '').trim();
     if (!billNumber) return res.status(400).json({ error: 'billNumber is required.' });
-    const bill = await Purchase.findOne({ businessId: req.auth.businessId, 'bill_details.billNumber': new RegExp(`^${escapeRegex(billNumber)}$`, 'i') });
+    const bill = await Purchase.findOne({ businessId: req.auth.businessId, 'billDetails.billNumber': new RegExp(`^${escapeRegex(billNumber)}$`, 'i') });
     if (!bill) return res.status(404).json({ error: 'No purchase bill found with that bill number.' });
     res.json(bill);
   } catch (error) { res.status(500).json({ error: error.message }); }

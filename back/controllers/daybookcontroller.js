@@ -1,4 +1,4 @@
-﻿const Sale = require('../model/salemodule');
+const Sale = require('../model/salemodule');
 const GstSale = require('../model/salesmodule');
 const Purchase = require('../model/purchasemodule');
 const CreditNote = require('../model/creditnotemodule');
@@ -18,9 +18,9 @@ exports.getDayBook = async (req, res) => {
     const end = req.query.endDate ? new Date(`${req.query.endDate}T23:59:59.999`) : null;
     const billFilter = { businessId: req.auth.businessId };
     if (start || end) {
-      billFilter['bill_details.date'] = {};
-      if (start) billFilter['bill_details.date'].$gte = start;
-      if (end) billFilter['bill_details.date'].$lte = end;
+      billFilter['billDetails.date'] = {};
+      if (start) billFilter['billDetails.date'].$gte = start;
+      if (end) billFilter['billDetails.date'].$lte = end;
     }
     const plainFilter = { businessId: req.auth.businessId };
     if (start || end) {
@@ -40,24 +40,24 @@ exports.getDayBook = async (req, res) => {
 
     const entries = [];
     sales.forEach((s) => {
-      const b = s.bill_details || {};
-      entries.push({ date: b.date, type: 'Sale', refNo: b.order_sno || '', party: s.customer?.name || '', amount: round2(b.bill_amount), direction: 'out' });
+      const b = s.billDetails || {};
+      entries.push({ date: b.date, type: 'Sale', refNo: b.billNumber || '', party: s.customer?.name || '', amount: round2(b.grandTotal), direction: 'out' });
     });
     gstSales.forEach((s) => {
-      const b = s.bill_details || {};
-      entries.push({ date: b.date, type: 'GST Sale', refNo: b.billNumber || '', party: s.customer?.name || '', amount: round2(b.billAmount), direction: 'out' });
+      const b = s.billDetails || {};
+      entries.push({ date: b.date, type: 'GST Sale', refNo: b.invoiceNumber || '', party: s.customer?.name || '', amount: round2(b.grandTotal), direction: 'out' });
     });
     purchases.forEach((p) => {
-      const b = p.bill_details || {};
-      entries.push({ date: b.date, type: 'Purchase', refNo: b.billNumber || '', party: p.supplier?.name || '', amount: round2(b.billAmount), direction: 'in' });
+      const b = p.billDetails || {};
+      entries.push({ date: b.date, type: 'Purchase', refNo: b.billNumber || '', party: p.supplier?.name || '', amount: round2(b.grandTotal), direction: 'in' });
     });
     creditNotes.forEach((n) => {
-      const b = n.bill_details || {};
-      entries.push({ date: b.date, type: 'Credit Note', refNo: b.creditNoteNumber || '', party: n.customer?.name || '', amount: round2(b.creditNoteAmount), direction: 'in' });
+      const b = n.billDetails || {};
+      entries.push({ date: b.date, type: 'Credit Note', refNo: b.creditNoteNumber || '', party: n.customer?.name || '', amount: round2(b.grandTotal), direction: 'in' });
     });
     debitNotes.forEach((n) => {
-      const b = n.bill_details || {};
-      entries.push({ date: b.date, type: 'Debit Note', refNo: b.debitNoteNumber || '', party: n.supplier?.name || '', amount: round2(b.debitNoteAmount), direction: 'out' });
+      const b = n.billDetails || {};
+      entries.push({ date: b.date, type: 'Debit Note', refNo: b.debitNoteNumber || '', party: n.supplier?.name || '', amount: round2(b.grandTotal), direction: 'out' });
     });
     receipts.forEach((r) => {
       entries.push({ date: r.date, type: 'Receipt', refNo: r.receipt_no || '', party: r.customer?.name || '', amount: round2(r.amount), mode: r.mode || '', direction: 'in' });

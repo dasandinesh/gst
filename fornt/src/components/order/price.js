@@ -39,14 +39,14 @@ const ByBillSection = () => {
             const term = productName.toLowerCase();
             const built = orders
                 .map((order) => {
-                    const item = (order.products || []).find((p) => (p.name || '').toLowerCase() === term);
+                    const item = (order.items || []).find((p) => (p.name || '').toLowerCase() === term);
                     if (!item) return null;
                     return {
                         orderId: order._id,
                         itemId: item._id,
-                        billNo: order.bill_details?.order_sno || '—',
+                        billNo: order.billDetails?.billNumber || '—',
                         customerName: order.customer?.name || '—',
-                        price: item.single_price ?? '',
+                        price: item.rate ?? '',
                         quantity: item.quantity ?? '',
                         order,
                     };
@@ -73,15 +73,15 @@ const ByBillSection = () => {
     const saveRow = async (index) => {
         const row = rows[index];
         if (!row) return;
-        const updatedProducts = (row.order.products || []).map((p) => (
+        const updatedProducts = (row.order.items || []).map((p) => (
             p._id === row.itemId
-                ? { ...p, single_price: Number(row.price) || 0, quantity: Number(row.quantity) || 0 }
+                ? { ...p, rate: Number(row.price) || 0, quantity: Number(row.quantity) || 0 }
                 : p
         ));
         const payload = {
             customer: row.order.customer,
-            bill_details: row.order.bill_details,
-            products: updatedProducts,
+            billDetails: row.order.billDetails,
+            items: updatedProducts,
         };
         try {
             const updated = await fetchJson(`/api/orders/${row.orderId}`, {
@@ -89,9 +89,9 @@ const ByBillSection = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            const item = (updated.products || []).find((p) => p._id === row.itemId) || {};
+            const item = (updated.items || []).find((p) => p._id === row.itemId) || {};
             setRows((current) => current.map((r, i) => (
-                i === index ? { ...r, order: updated, price: item.single_price ?? r.price, quantity: item.quantity ?? r.quantity } : r
+                i === index ? { ...r, order: updated, price: item.rate ?? r.price, quantity: item.quantity ?? r.quantity } : r
             )));
             setStatus(`Saved — bill ${row.billNo} (${row.customerName}) updated.`);
         } catch (error) {
@@ -190,11 +190,11 @@ const BulkPriceSection = () => {
             const byName = new Map();
             // Orders come back newest-first, so the first line seen for a product is its most recent price.
             orders.forEach((order) => {
-                (order.products || []).forEach((item) => {
+                (order.items || []).forEach((item) => {
                     const key = (item.name || '').trim().toLowerCase();
                     if (!key) return;
                     if (!byName.has(key)) {
-                        byName.set(key, { name: item.name, price: item.single_price ?? '', orders: [] });
+                        byName.set(key, { name: item.name, price: item.rate ?? '', orders: [] });
                     }
                     byName.get(key).orders.push(order);
                 });
@@ -224,13 +224,13 @@ const BulkPriceSection = () => {
         const term = row.name.trim().toLowerCase();
         try {
             const updatedOrders = await Promise.all(row.orders.map((order) => {
-                const updatedProducts = (order.products || []).map((p) => (
-                    (p.name || '').trim().toLowerCase() === term ? { ...p, single_price: priceNum } : p
+                const updatedProducts = (order.items || []).map((p) => (
+                    (p.name || '').trim().toLowerCase() === term ? { ...p, rate: priceNum } : p
                 ));
                 return fetchJson(`/api/orders/${order._id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer: order.customer, bill_details: order.bill_details, products: updatedProducts }),
+                    body: JSON.stringify({ customer: order.customer, billDetails: order.billDetails, items: updatedProducts }),
                 });
             }));
             setProductRows((current) => current.map((r, i) => (

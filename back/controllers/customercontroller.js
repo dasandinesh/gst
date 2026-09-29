@@ -1,4 +1,5 @@
 const Customer = require('../model/customermodule');
+const { cleanAddress } = require('../model/addressSchema');
 
 // Create a new customer
 exports.createCustomer = async (req, res) => {
@@ -7,6 +8,7 @@ exports.createCustomer = async (req, res) => {
             ...req.body,
             businessId: req.auth.businessId,
             oldBalance: Number(req.body.oldBalance || 0), // opening balance; grows/shrinks with sales & receipts
+            shippingAddress: cleanAddress(req.body.shippingAddress),
         };
         const customer = new Customer(customerData);
         await customer.save();
@@ -44,10 +46,13 @@ exports.getCustomerById = async (req, res) => {
 // Update a customer by ID
 exports.updateCustomer = async (req, res) => {
     try {
+        const update = { ...req.body };
+        delete update.businessId; // a customer can't be moved to another business
+        if (update.shippingAddress !== undefined) update.shippingAddress = cleanAddress(update.shippingAddress);
         const customer = await Customer.findOneAndUpdate(
             { _id: req.params.id, businessId: req.auth.businessId },
-            req.body,
-            { new: true }
+            update,
+            { new: true, runValidators: true }
         );
         if (!customer) {
             return res.status(404).json({ error: 'Customer not found' });

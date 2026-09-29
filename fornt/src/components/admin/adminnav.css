@@ -1,0 +1,80 @@
+/* Dark/slate theme, deliberately distinct from the green business MainNav —
+   a visual cue that this is the platform admin console, not a tenant workspace. */
+.adminnav {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  align-items: center;
+  min-height: 60px;
+  padding: 0 clamp(18px, 5%, 60px);
+  gap: 24px;
+  background: #0f172a;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 0 6px 24px rgba(2, 6, 23, .35);
+}
+
+.adminnav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.adminnav-badge {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  color: #0f172a;
+  background: #fbbf24;
+  border-radius: 5px;
+}
+
+.adminnav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.adminnav-link {
+  padding: 9px 13px;
+  color: rgba(226, 232, 240, .75);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: color .16s ease, background-color .16s ease;
+}
+.adminnav-link:hover, .adminnav-link:focus-visible { color: #fff; background: rgba(255, 255, 255, .08); outline: none; }
+.adminnav-link.is-active { color: #0f172a; background: #fbbf24; font-weight: 700; }
+
+.adminnav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+.adminnav-user-name { color: rgba(226, 232, 240, .85); font-size: 13px; white-space: nowrap; }
+.adminnav-logout {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.adminnav-logout:hover { background: rgba(255, 255, 255, .18); }
+
+@media (max-width: 700px) {
+  .adminnav { flex-wrap: wrap; padding: 12px 18px; min-height: 0; gap: 10px; }
+  .adminnav-links { order: 3; flex-basis: 100%; }
+}

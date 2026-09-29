@@ -8,6 +8,8 @@ router.post('/login', authController.login);
 router.post('/select-business', authController.selectBusiness);
 router.post('/logout', authController.logout);
 router.get('/me', protect, authController.me);
+router.get('/profile', protect, authController.getProfile);
+router.put('/profile', protect, authController.updateProfile);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 

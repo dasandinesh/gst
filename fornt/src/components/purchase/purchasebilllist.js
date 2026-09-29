@@ -65,7 +65,7 @@ const PurchaseBillList = () => {
     loadBills(filters, next);
   };
 
-  const pageTotal = bills.reduce((sum, bill) => sum + Number(bill.bill_details?.billAmount || 0), 0);
+  const pageTotal = bills.reduce((sum, bill) => sum + Number(bill.billDetails?.grandTotal || 0), 0);
 
   return (
     <main className="gst-bill-page">
@@ -116,13 +116,13 @@ const PurchaseBillList = () => {
                 <tr><td colSpan="8" className="gst-table-state">No purchase bills match this filter.</td></tr>
               ) : bills.map((bill) => (
                 <tr key={bill._id}>
-                  <td className="gst-row-name">{bill.bill_details?.billNumber}</td>
-                  <td>{displayDate(bill.bill_details?.date)}</td>
+                  <td className="gst-row-name">{bill.billDetails?.billNumber}</td>
+                  <td>{displayDate(bill.billDetails?.date)}</td>
                   <td>{bill.supplier?.name}</td>
-                  <td>{bill.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST+SGST'}</td>
-                  <td>{money(bill.bill_details?.billAmount)}</td>
-                  <td>{money(bill.bill_details?.cash)}</td>
-                  <td>{money(bill.bill_details?.credit)}</td>
+                  <td>{bill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST+SGST'}</td>
+                  <td>{money(bill.billDetails?.grandTotal)}</td>
+                  <td>{money(bill.billDetails?.cash)}</td>
+                  <td>{money(bill.billDetails?.credit)}</td>
                   <td className="gst-row-actions">
                     <button type="button" className="gst-view-button" onClick={() => setViewBill(bill)}>View</button>
                   </td>
@@ -156,33 +156,33 @@ const PurchaseBillList = () => {
         <div className="gst-view-overlay" onClick={() => setViewBill(null)}>
           <div className="gst-view-modal" onClick={(e) => e.stopPropagation()}>
             <div className="gst-view-header">
-              <h3>Purchase bill {viewBill.bill_details?.billNumber}</h3>
+              <h3>Purchase bill {viewBill.billDetails?.billNumber}</h3>
               <button type="button" onClick={() => setViewBill(null)}>✕</button>
             </div>
             <div className="gst-view-meta">
               <div><span>Supplier</span><strong>{viewBill.supplier?.name}</strong></div>
-              <div><span>Date</span><strong>{displayDate(viewBill.bill_details?.date)}</strong></div>
-              <div><span>Tax type</span><strong>{viewBill.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
-              <div><span>Place of supply</span><strong>{viewBill.bill_details?.placeOfSupply || '—'}</strong></div>
-              {viewBill.bill_details?.supplierBillNumber && <div><span>Supplier bill no.</span><strong>{viewBill.bill_details.supplierBillNumber}</strong></div>}
+              <div><span>Date</span><strong>{displayDate(viewBill.billDetails?.date)}</strong></div>
+              <div><span>Tax type</span><strong>{viewBill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
+              <div><span>Place of supply</span><strong>{viewBill.billDetails?.placeOfSupply || '—'}</strong></div>
+              {viewBill.billDetails?.supplierInvoiceNumber && <div><span>Supplier bill no.</span><strong>{viewBill.billDetails.supplierInvoiceNumber}</strong></div>}
             </div>
             <table className="gst-view-table">
               <thead><tr><th>Product</th><th>HSN</th><th>Qty</th><th>Price</th><th>GST%</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th></tr></thead>
               <tbody>
-                {(viewBill.products || []).map((p, index) => (
-                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.price)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.total)}</td></tr>
+                {(viewBill.items || []).map((p, index) => (
+                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.rate)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.amount)}</td></tr>
                 ))}
               </tbody>
             </table>
             <div className="gst-view-totals">
-              <div><span>Subtotal</span><strong>{money(viewBill.bill_details?.subtotal)}</strong></div>
-              <div><span>Total CGST</span><strong>{money(viewBill.bill_details?.totalCgst)}</strong></div>
-              <div><span>Total SGST</span><strong>{money(viewBill.bill_details?.totalSgst)}</strong></div>
-              <div><span>Total IGST</span><strong>{money(viewBill.bill_details?.totalIgst)}</strong></div>
-              <div><span>Round off</span><strong>{money(viewBill.bill_details?.roundOff)}</strong></div>
-              <div><span>Grand total</span><strong>{money(viewBill.bill_details?.billAmount)}</strong></div>
-              <div><span>Cash paid</span><strong>{money(viewBill.bill_details?.cash)}</strong></div>
-              <div><span>Credit</span><strong>{money(viewBill.bill_details?.credit)}</strong></div>
+              <div><span>Subtotal</span><strong>{money(viewBill.billDetails?.totalTaxableValue)}</strong></div>
+              <div><span>Total CGST</span><strong>{money(viewBill.billDetails?.totalCgst)}</strong></div>
+              <div><span>Total SGST</span><strong>{money(viewBill.billDetails?.totalSgst)}</strong></div>
+              <div><span>Total IGST</span><strong>{money(viewBill.billDetails?.totalIgst)}</strong></div>
+              <div><span>Round off</span><strong>{money(viewBill.billDetails?.roundOff)}</strong></div>
+              <div><span>Grand total</span><strong>{money(viewBill.billDetails?.grandTotal)}</strong></div>
+              <div><span>Cash paid</span><strong>{money(viewBill.billDetails?.cash)}</strong></div>
+              <div><span>Credit</span><strong>{money(viewBill.billDetails?.credit)}</strong></div>
             </div>
             <div className="gst-view-actions">
               <button type="button" onClick={() => setViewBill(null)}>Close</button>

@@ -63,7 +63,7 @@ const SaleBillList = () => {
     loadSales(filters, next);
   };
 
-  const pageTotal = sales.reduce((sum, sale) => sum + Number(sale.bill_details?.bill_amount || 0), 0);
+  const pageTotal = sales.reduce((sum, sale) => sum + Number(sale.billDetails?.grandTotal || 0), 0);
 
   return (
     <main className="customer-list-page">
@@ -114,13 +114,13 @@ const SaleBillList = () => {
                 <tr><td colSpan="7" className="customer-table-state">No sale bills match this filter.</td></tr>
               ) : sales.map((sale) => (
                 <tr key={sale._id}>
-                  <td>{sale.bill_details?.order_sno || '—'}</td>
-                  <td>{displayDate(sale.bill_details?.date)}</td>
+                  <td>{sale.billDetails?.billNumber || '—'}</td>
+                  <td>{displayDate(sale.billDetails?.date)}</td>
                   <td className="customer-name">{sale.customer?.name || '—'}</td>
-                  <td>{sale.products?.map((p) => p.name).join(', ') || '—'}</td>
-                  <td>{sale.bill_details?.total_quantity || 0}</td>
-                  <td>{currency(sale.bill_details?.bill_amount)}</td>
-                  <td>{sale.bill_details?.billed ? 'Billed' : 'Pending'}</td>
+                  <td>{sale.items?.map((p) => p.name).join(', ') || '—'}</td>
+                  <td>{sale.billDetails?.totalQuantity || 0}</td>
+                  <td>{currency(sale.billDetails?.grandTotal)}</td>
+                  <td>{sale.billDetails?.billed ? 'Billed' : 'Pending'}</td>
                 </tr>
               ))}
             </tbody>

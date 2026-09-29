@@ -18,6 +18,72 @@
 .gst-bill-list-pagination-buttons button:hover:not(:disabled) { background: #e1f2e9; }
 .gst-bill-list-pagination-buttons button:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Split view: list on the left, the clicked bill on the right (like Zoho Books). */
+.gst-bill-list-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; max-width: 1700px; margin: 0 auto; }
+/* List 20%, bill 80% (the list never goes below 240px). */
+/* List 80%, preview 20% (the preview never goes below 260px). */
+.gst-bill-list-split.has-detail { grid-template-columns: minmax(0, 4fr) minmax(260px, 1fr); }
+.gst-bill-list-split.has-detail .gst-bill-list-page-card { max-width: none; margin: 0; }
+.gst-bill-list-row { cursor: pointer; }
+.gst-bill-list-row:hover td { background: #f3f9f6; }
+.gst-bill-list-row.is-selected td { background: #e1f2e9; }
+.gst-bill-list-row.is-selected td:first-child { box-shadow: inset 3px 0 0 #2c7159; }
+
+.gst-bill-detail-panel {
+  position: sticky;
+  top: 10px;
+  box-sizing: border-box;
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  padding: 12px;
+  font-size: 12.5px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(28, 63, 52, .12);
+}
+
+/* Compact preview contents (one column). */
+.gst-bill-detail-panel .gst-view-header { flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.gst-bill-detail-panel .gst-view-header h3 { flex: 1 1 100%; font-size: 15px; }
+.gst-preview-total { display: flex; flex-direction: column; padding: 8px 10px; margin-bottom: 10px; background: #e1f2e9; border-radius: 9px; }
+.gst-preview-total span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: #476159; }
+.gst-preview-total strong { font-size: 19px; color: #15593e; }
+.gst-preview-rows { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0 0 10px; }
+.gst-preview-rows dt { color: #6b8079; font-size: 11.5px; }
+.gst-preview-rows dd { margin: 0; color: #19302a; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.gst-preview-heading { margin: 8px 0 4px; font-size: 11px; font-weight: 700; color: #476159; text-transform: uppercase; letter-spacing: .04em; }
+.gst-preview-items { margin: 0 0 10px; padding: 0; list-style: none; border-top: 1px solid #e6ede9; }
+.gst-preview-items li { padding: 6px 0; border-bottom: 1px solid #e6ede9; }
+.gst-preview-item-top { display: flex; justify-content: space-between; gap: 8px; }
+.gst-preview-item-top span { font-weight: 600; color: #19302a; overflow-wrap: anywhere; }
+.gst-preview-item-top strong { white-space: nowrap; }
+.gst-preview-items small { color: #6b8079; font-size: 11px; }
+.gst-preview-sums { padding: 8px 10px; background: #f5f8f6; border-radius: 9px; }
+.gst-preview-sums .gst-preview-grand { color: #15593e; font-size: 13.5px; font-weight: 700; }
+.gst-bill-detail-panel .gst-view-actions { flex-wrap: wrap; justify-content: stretch; gap: 6px; }
+.gst-bill-detail-panel .gst-view-actions button { flex: 1 1 calc(50% - 6px); padding: 7px 8px; font-size: 12px; }
+
+/* Narrow screens: the panel slides in over the list instead of beside it. */
+@media (max-width: 1100px) {
+  .gst-bill-list-split.has-detail { grid-template-columns: minmax(0, 1fr); }
+  .gst-bill-detail-panel {
+    position: fixed;
+    z-index: 40;
+    top: 0;
+    right: 0;
+    width: min(360px, 100%);
+    height: 100vh;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: -12px 0 40px rgba(9, 28, 22, .3);
+    animation: gst-panel-in .18s ease;
+  }
+  @keyframes gst-panel-in {
+    from { transform: translateX(30px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+}
+
 @media (max-width: 600px) {
   .gst-bill-list-header { flex-direction: column; }
 }

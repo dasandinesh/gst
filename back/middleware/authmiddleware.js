@@ -19,4 +19,22 @@ const protect = (req, res, next) => {
   next();
 };
 
-module.exports = { protect };
+// Guards the platform-admin routes. Reads the separate `admin_token` cookie
+// (not the business `token`) and attaches { userId } to req.adminAuth.
+const protectAdmin = (req, res, next) => {
+  const token = req.cookies?.admin_token;
+  if (!token) return res.status(401).json({ error: 'Not logged in.' });
+
+  let payload;
+  try {
+    payload = verifyToken(token);
+  } catch {
+    return res.status(401).json({ error: 'Session expired. Please log in again.' });
+  }
+  if (!payload.admin) return res.status(403).json({ error: 'Not authorized.' });
+
+  req.adminAuth = { userId: payload.sub };
+  next();
+};
+
+module.exports = { protect, protectAdmin };

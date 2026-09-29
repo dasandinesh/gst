@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { shippingAddressSchema } = require('./addressSchema');
 
 const customerSchema = new mongoose.Schema({
   businessId: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
@@ -11,6 +12,8 @@ const customerSchema = new mongoose.Schema({
   district: { type: String },
   state: { type: String },
   pincode: { type: String },
+  // Default delivery address; empty means goods go to the billing address above.
+  shippingAddress: { type: shippingAddressSchema, default: () => ({}) },
   oldBalance: { type: Number, default: 0 },
   pan_it_no: { type: String },
   gst_no: { type: String },

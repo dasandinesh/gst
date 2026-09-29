@@ -1,4 +1,4 @@
-﻿const Sale = require('../model/salemodule');
+const Sale = require('../model/salemodule');
 const GstSale = require('../model/salesmodule');
 const CreditNote = require('../model/creditnotemodule');
 const Receipt = require('../model/receiptmodule');
@@ -34,29 +34,13 @@ exports.getCustomerLedger = async (req, res) => {
     // represented or the derived opening balance below won't reconcile.
     const lines = [];
     sales.forEach((s) => {
-      const b = s.bill_details || {};
+      const b = s.billDetails || {};
       lines.push({
-        date: b.date, kind: 'sale', ref: b.order_sno || '',
-        particulars: `Sale bill ${b.order_sno || ''}`.trim(),
-        debit: num(b.bill_amount), credit: 0,
+        date: b.date, kind: 'sale', ref: b.billNumber || '',
+        particulars: `Sale bill ${b.billNumber || ''}`.trim(),
+        debit: num(b.grandTotal), credit: 0,
       });
       const paid = num(b.debit) + num(b.credit);
-      if (paid > 0) {
-        lines.push({
-          date: b.date, kind: 'bill-payment', ref: b.order_sno || '',
-          particulars: `Paid with bill ${b.order_sno || ''}`.trim(),
-          debit: 0, credit: paid,
-        });
-      }
-    });
-    gstSales.forEach((s) => {
-      const b = s.bill_details || {};
-      lines.push({
-        date: b.date, kind: 'gst-sale', ref: b.billNumber || '',
-        particulars: `GST bill ${b.billNumber || ''}`.trim(),
-        debit: num(b.billAmount), credit: 0,
-      });
-      const paid = num(b.cash) + num(b.credit);
       if (paid > 0) {
         lines.push({
           date: b.date, kind: 'bill-payment', ref: b.billNumber || '',
@@ -65,12 +49,28 @@ exports.getCustomerLedger = async (req, res) => {
         });
       }
     });
+    gstSales.forEach((s) => {
+      const b = s.billDetails || {};
+      lines.push({
+        date: b.date, kind: 'gst-sale', ref: b.invoiceNumber || '',
+        particulars: `GST bill ${b.invoiceNumber || ''}`.trim(),
+        debit: num(b.grandTotal), credit: 0,
+      });
+      const paid = num(b.cash) + num(b.credit);
+      if (paid > 0) {
+        lines.push({
+          date: b.date, kind: 'bill-payment', ref: b.invoiceNumber || '',
+          particulars: `Paid with bill ${b.invoiceNumber || ''}`.trim(),
+          debit: 0, credit: paid,
+        });
+      }
+    });
     creditNotes.forEach((n) => {
-      const b = n.bill_details || {};
+      const b = n.billDetails || {};
       lines.push({
         date: b.date, kind: 'credit-note', ref: b.creditNoteNumber || '',
         particulars: `Credit note ${b.creditNoteNumber || ''} (against ${n.originalBill?.billNumber || ''})`.trim(),
-        debit: 0, credit: num(b.creditNoteAmount),
+        debit: 0, credit: num(b.grandTotal),
       });
     });
     receipts.forEach((r) => {
@@ -145,11 +145,11 @@ exports.getSupplierLedger = async (req, res) => {
     // represented or the derived opening balance below won't reconcile.
     const lines = [];
     purchases.forEach((p) => {
-      const b = p.bill_details || {};
+      const b = p.billDetails || {};
       lines.push({
         date: b.date, kind: 'purchase', ref: b.billNumber || '',
         particulars: `Purchase bill ${b.billNumber || ''}`.trim(),
-        debit: 0, credit: num(b.billAmount),
+        debit: 0, credit: num(b.grandTotal),
       });
       const paid = num(b.cash) + num(b.credit);
       if (paid > 0) {
@@ -161,11 +161,11 @@ exports.getSupplierLedger = async (req, res) => {
       }
     });
     debitNotes.forEach((n) => {
-      const b = n.bill_details || {};
+      const b = n.billDetails || {};
       lines.push({
         date: b.date, kind: 'debit-note', ref: b.debitNoteNumber || '',
         particulars: `Debit note ${b.debitNoteNumber || ''} (against ${n.originalBill?.billNumber || ''})`.trim(),
-        debit: num(b.debitNoteAmount), credit: 0,
+        debit: num(b.grandTotal), credit: 0,
       });
     });
     payments.forEach((p) => {

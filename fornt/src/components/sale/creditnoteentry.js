@@ -22,9 +22,9 @@ const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 // Mirrors the server's GST math (back/controllers/creditnotecontroller.js) for a live preview.
 const computeLine = (item, taxType) => {
   const quantity = Number(item.quantity) || 0;
-  const price = Number(item.price) || 0;
+  const rate = Number(item.rate) || 0;
   const gstRate = Number(item.gstRate) || 0;
-  const gross = quantity * price;
+  const gross = quantity * rate;
   const isInclusive = item.gstMode === 'inclusive';
   const taxableValue = isInclusive ? gross / (1 + gstRate / 100) : gross;
   const gstAmount = isInclusive ? gross - taxableValue : (taxableValue * gstRate) / 100;
@@ -32,7 +32,7 @@ const computeLine = (item, taxType) => {
   return {
     ...item,
     quantity,
-    price,
+    rate,
     gstRate,
     taxableValue: round2(taxableValue),
     cgstRate: interState ? 0 : round2(gstRate / 2),
@@ -41,14 +41,14 @@ const computeLine = (item, taxType) => {
     cgstAmount: interState ? 0 : round2(gstAmount / 2),
     sgstAmount: interState ? 0 : round2(gstAmount / 2),
     igstAmount: interState ? round2(gstAmount) : 0,
-    total: round2(taxableValue + gstAmount),
+    amount: round2(taxableValue + gstAmount),
   };
 };
 
-const emptyLine = { name: '', hsnCode: '', quantity: '', unit: '', price: '', gstMode: 'exclusive', gstRate: '' };
+const emptyLine = { name: '', hsnCode: '', quantity: '', unit: '', rate: '', gstMode: 'exclusive', gstRate: '' };
 const emptyCustomer = { name: '', customerId: '', gstin: '', state: '' };
 const emptyOriginalBill = { billId: '', billNumber: '', date: '' };
-const emptyBillMeta = { creditNoteNumber: '', date: todayString(), taxType: 'CGST_SGST', placeOfSupply: '', reason: 'Sales Return', remark: '' };
+const emptyBillMeta = { creditNoteNumber: '', date: todayString(), taxType: 'CGST_SGST', placeOfSupply: '', reason: 'Sales Return', notes: '' };
 
 const CreditNoteEntry = () => {
   const originalBillRef = useRef(null);
@@ -121,15 +121,15 @@ const CreditNoteEntry = () => {
 
   const computedLines = useMemo(() => lines.map((line) => computeLine(line, billMeta.taxType)), [lines, billMeta.taxType]);
   const totals = useMemo(() => {
-    const subtotal = round2(computedLines.reduce((sum, l) => sum + l.taxableValue, 0));
+    const totalTaxableValue = round2(computedLines.reduce((sum, l) => sum + l.taxableValue, 0));
     const totalCgst = round2(computedLines.reduce((sum, l) => sum + l.cgstAmount, 0));
     const totalSgst = round2(computedLines.reduce((sum, l) => sum + l.sgstAmount, 0));
     const totalIgst = round2(computedLines.reduce((sum, l) => sum + l.igstAmount, 0));
     const totalGst = round2(totalCgst + totalSgst + totalIgst);
-    const rawTotal = subtotal + totalGst;
-    const creditNoteAmount = Math.round(rawTotal);
-    const roundOff = round2(creditNoteAmount - rawTotal);
-    return { subtotal, totalCgst, totalSgst, totalIgst, totalGst, roundOff, creditNoteAmount };
+    const rawTotal = totalTaxableValue + totalGst;
+    const grandTotal = Math.round(rawTotal);
+    const roundOff = round2(grandTotal - rawTotal);
+    return { totalTaxableValue, totalCgst, totalSgst, totalIgst, totalGst, roundOff, grandTotal };
   }, [computedLines]);
 
   const handleLoadOriginalBill = async () => {
@@ -139,16 +139,16 @@ const CreditNoteEntry = () => {
     setOriginalBillLoading(true);
     try {
       const bill = await fetchJson(`/api/credit-notes/find-original-bill?billNumber=${encodeURIComponent(billNumber)}`);
-      setOriginalBill({ billId: bill._id, billNumber: bill.bill_details?.billNumber || billNumber, date: bill.bill_details?.date || '' });
+      setOriginalBill({ billId: bill._id, billNumber: bill.billDetails?.invoiceNumber || billNumber, date: bill.billDetails?.date || '' });
       setCustomer({
         name: bill.customer?.name || '',
         customerId: bill.customer?.customerId || '',
         gstin: bill.customer?.gstin || '',
         state: bill.customer?.state || '',
       });
-      setBillMeta((m) => ({ ...m, taxType: bill.bill_details?.taxType || 'CGST_SGST', placeOfSupply: bill.bill_details?.placeOfSupply || '' }));
-      setLines((bill.products || []).map((p) => ({
-        name: p.name || '', hsnCode: p.hsnCode || '', quantity: p.quantity ?? '', unit: p.unit || '', price: p.price ?? '', gstMode: p.gstMode || 'exclusive', gstRate: p.gstRate ?? '',
+      setBillMeta((m) => ({ ...m, taxType: bill.billDetails?.taxType || 'CGST_SGST', placeOfSupply: bill.billDetails?.placeOfSupply || '' }));
+      setLines((bill.items || []).map((p) => ({
+        name: p.name || '', hsnCode: p.hsnCode || '', quantity: p.quantity ?? '', unit: p.unit || '', rate: p.rate ?? '', gstMode: p.gstMode || 'exclusive', gstRate: p.gstRate ?? '',
       })));
       productNameRef.current?.focus();
     } catch (error) {
@@ -168,7 +168,7 @@ const CreditNoteEntry = () => {
         hsnCode: match.hsnCode || '',
         quantity: currentLine.quantity,
         unit: match.Scale || '',
-        price: match.Price ?? '',
+        rate: match.Price ?? '',
         gstMode: match.gstMode || 'exclusive',
         gstRate: match.gstpre ?? '',
       });
@@ -219,15 +219,15 @@ const CreditNoteEntry = () => {
       state: note.customer?.state || '',
     });
     setBillMeta({
-      creditNoteNumber: note.bill_details?.creditNoteNumber || '',
-      date: toDateInput(note.bill_details?.date),
-      taxType: note.bill_details?.taxType || 'CGST_SGST',
-      placeOfSupply: note.bill_details?.placeOfSupply || '',
-      reason: note.bill_details?.reason || 'Sales Return',
-      remark: note.bill_details?.remark || '',
+      creditNoteNumber: note.billDetails?.creditNoteNumber || '',
+      date: toDateInput(note.billDetails?.date),
+      taxType: note.billDetails?.taxType || 'CGST_SGST',
+      placeOfSupply: note.billDetails?.placeOfSupply || '',
+      reason: note.billDetails?.reason || 'Sales Return',
+      notes: note.billDetails?.notes || '',
     });
-    setLines((note.products || []).map((p) => ({
-      name: p.name || '', hsnCode: p.hsnCode || '', quantity: p.quantity ?? '', unit: p.unit || '', price: p.price ?? '', gstMode: p.gstMode || 'exclusive', gstRate: p.gstRate ?? '',
+    setLines((note.items || []).map((p) => ({
+      name: p.name || '', hsnCode: p.hsnCode || '', quantity: p.quantity ?? '', unit: p.unit || '', rate: p.rate ?? '', gstMode: p.gstMode || 'exclusive', gstRate: p.gstRate ?? '',
     })));
     setSaveStatus({ type: '', text: '' });
     setOriginalBillWarning('');
@@ -249,14 +249,14 @@ const CreditNoteEntry = () => {
     const payload = {
       originalBill: { billId: originalBill.billId || undefined, billNumber: originalBill.billNumber, date: originalBill.date || undefined },
       customer: { name: customer.name, customerId: customer.customerId || undefined, gstin: customer.gstin, state: customer.state },
-      products: lines,
-      bill_details: { ...billMeta },
+      items: lines,
+      billDetails: { ...billMeta },
     };
     try {
       const saved = editingId
         ? await fetchJson(`/api/credit-notes/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         : await fetchJson('/api/credit-notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      setSaveStatus({ type: 'success', text: `Credit note ${saved.bill_details?.creditNoteNumber || ''} ${editingId ? 'updated' : 'saved'} successfully.` });
+      setSaveStatus({ type: 'success', text: `Credit note ${saved.billDetails?.creditNoteNumber || ''} ${editingId ? 'updated' : 'saved'} successfully.` });
       resetForm();
       loadNotes();
     } catch (error) {
@@ -265,7 +265,7 @@ const CreditNoteEntry = () => {
   };
 
   const deleteNote = async (note) => {
-    if (!window.confirm(`Delete credit note ${note.bill_details?.creditNoteNumber}? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete credit note ${note.billDetails?.creditNoteNumber}? This cannot be undone.`)) return;
     try {
       await fetchJson(`/api/credit-notes/${note._id}`, { method: 'DELETE' });
       if (editingId === note._id) resetForm();
@@ -360,8 +360,8 @@ const CreditNoteEntry = () => {
               </div>
               <div className="gst-input-field">
                 <label>Price</label><br />
-                <input type="number" min="0" step="0.01" className="gst-small-input" ref={priceRef} value={currentLine.price}
-                  onChange={(e) => setCurrentLine((l) => ({ ...l, price: e.target.value }))}
+                <input type="number" min="0" step="0.01" className="gst-small-input" ref={priceRef} value={currentLine.rate}
+                  onChange={(e) => setCurrentLine((l) => ({ ...l, rate: e.target.value }))}
                   onKeyDown={(e) => focusNextOnEnter(e, gstModeRef)} />
               </div>
               <div className="gst-input-field">
@@ -396,8 +396,8 @@ const CreditNoteEntry = () => {
                     <tr><td colSpan="11" className="gst-no-entries">Load the original bill, or add lines manually.</td></tr>
                   ) : computedLines.map((l, index) => (
                     <tr key={index}>
-                      <td>{l.name}</td><td>{l.hsnCode || '—'}</td><td>{l.quantity} {l.unit}</td><td>{money(l.price)}</td><td>{l.gstRate}%</td>
-                      <td>{money(l.taxableValue)}</td><td>{money(l.cgstAmount)}</td><td>{money(l.sgstAmount)}</td><td>{money(l.igstAmount)}</td><td>{money(l.total)}</td>
+                      <td>{l.name}</td><td>{l.hsnCode || '—'}</td><td>{l.quantity} {l.unit}</td><td>{money(l.rate)}</td><td>{l.gstRate}%</td>
+                      <td>{money(l.taxableValue)}</td><td>{money(l.cgstAmount)}</td><td>{money(l.sgstAmount)}</td><td>{money(l.igstAmount)}</td><td>{money(l.amount)}</td>
                       <td><button type="button" className="gst-remove-line-button" title="Remove" aria-label="Remove" onClick={() => removeLine(index)}>🗑</button></td>
                     </tr>
                   ))}
@@ -415,21 +415,21 @@ const CreditNoteEntry = () => {
                 </thead>
                 <tbody>
                   <tr>
-                    <td>{money(totals.subtotal)}</td>
+                    <td>{money(totals.totalTaxableValue)}</td>
                     <td>{money(totals.totalCgst)}</td>
                     <td>{money(totals.totalSgst)}</td>
                     <td>{money(totals.totalIgst)}</td>
                     <td>{money(totals.roundOff)}</td>
-                    <td className="gst-grand-total-cell">{money(totals.creditNoteAmount)}</td>
+                    <td className="gst-grand-total-cell">{money(totals.grandTotal)}</td>
                   </tr>
                 </tbody>
               </table>
               <div className="gst-totals-side">
                 <div className="gst-balance-due settled">
                   <span>Reduces customer balance by</span>
-                  <strong>{money(totals.creditNoteAmount)}</strong>
+                  <strong>{money(totals.grandTotal)}</strong>
                 </div>
-                <div className="gst-input-field gst-bill-remark-row"><label>Remark:</label><input type="text" className="gst-text-input" value={billMeta.remark} onChange={(e) => setBillMeta((m) => ({ ...m, remark: e.target.value }))} /></div>
+                <div className="gst-input-field gst-bill-remark-row"><label>Remark:</label><input type="text" className="gst-text-input" value={billMeta.notes} onChange={(e) => setBillMeta((m) => ({ ...m, notes: e.target.value }))} /></div>
               </div>
             </div>
           </fieldset>
@@ -457,10 +457,10 @@ const CreditNoteEntry = () => {
             <tbody>
               {notes.length === 0 ? <tr><td colSpan="5" className="gst-table-state">{notesStatus || 'No credit notes found.'}</td></tr> : notes.map((note) => (
                 <tr key={note._id}>
-                  <td className="gst-row-name">{note.bill_details?.creditNoteNumber}</td>
+                  <td className="gst-row-name">{note.billDetails?.creditNoteNumber}</td>
                   <td>{note.originalBill?.billNumber}</td>
                   <td>{note.customer?.name}</td>
-                  <td>{money(note.bill_details?.creditNoteAmount)}</td>
+                  <td>{money(note.billDetails?.grandTotal)}</td>
                   <td className="gst-row-actions">
                     <button type="button" className="gst-view-button" onClick={() => setViewNote(note)}>View</button>
                   </td>
@@ -476,32 +476,32 @@ const CreditNoteEntry = () => {
         <div className="gst-view-overlay" onClick={() => setViewNote(null)}>
           <div className="gst-view-modal" onClick={(e) => e.stopPropagation()}>
             <div className="gst-view-header">
-              <h3>Credit note {viewNote.bill_details?.creditNoteNumber}</h3>
+              <h3>Credit note {viewNote.billDetails?.creditNoteNumber}</h3>
               <button type="button" onClick={() => setViewNote(null)}>✕</button>
             </div>
             <div className="gst-view-meta">
               <div><span>Customer</span><strong>{viewNote.customer?.name}</strong></div>
-              <div><span>Date</span><strong>{toDateInput(viewNote.bill_details?.date)}</strong></div>
+              <div><span>Date</span><strong>{toDateInput(viewNote.billDetails?.date)}</strong></div>
               <div><span>Against bill</span><strong>{viewNote.originalBill?.billNumber}</strong></div>
-              <div><span>Reason</span><strong>{viewNote.bill_details?.reason}</strong></div>
-              <div><span>Tax type</span><strong>{viewNote.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
-              <div><span>Place of supply</span><strong>{viewNote.bill_details?.placeOfSupply || '—'}</strong></div>
+              <div><span>Reason</span><strong>{viewNote.billDetails?.reason}</strong></div>
+              <div><span>Tax type</span><strong>{viewNote.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
+              <div><span>Place of supply</span><strong>{viewNote.billDetails?.placeOfSupply || '—'}</strong></div>
             </div>
             <table className="gst-view-table">
               <thead><tr><th>Product</th><th>HSN</th><th>Qty</th><th>Price</th><th>GST%</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th></tr></thead>
               <tbody>
-                {(viewNote.products || []).map((p, index) => (
-                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.price)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.total)}</td></tr>
+                {(viewNote.items || []).map((p, index) => (
+                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.rate)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.amount)}</td></tr>
                 ))}
               </tbody>
             </table>
             <div className="gst-view-totals">
-              <div><span>Subtotal</span><strong>{money(viewNote.bill_details?.subtotal)}</strong></div>
-              <div><span>Total CGST</span><strong>{money(viewNote.bill_details?.totalCgst)}</strong></div>
-              <div><span>Total SGST</span><strong>{money(viewNote.bill_details?.totalSgst)}</strong></div>
-              <div><span>Total IGST</span><strong>{money(viewNote.bill_details?.totalIgst)}</strong></div>
-              <div><span>Round off</span><strong>{money(viewNote.bill_details?.roundOff)}</strong></div>
-              <div><span>Credit note amount</span><strong>{money(viewNote.bill_details?.creditNoteAmount)}</strong></div>
+              <div><span>Subtotal</span><strong>{money(viewNote.billDetails?.totalTaxableValue)}</strong></div>
+              <div><span>Total CGST</span><strong>{money(viewNote.billDetails?.totalCgst)}</strong></div>
+              <div><span>Total SGST</span><strong>{money(viewNote.billDetails?.totalSgst)}</strong></div>
+              <div><span>Total IGST</span><strong>{money(viewNote.billDetails?.totalIgst)}</strong></div>
+              <div><span>Round off</span><strong>{money(viewNote.billDetails?.roundOff)}</strong></div>
+              <div><span>Credit note amount</span><strong>{money(viewNote.billDetails?.grandTotal)}</strong></div>
             </div>
             <div className="gst-view-actions">
               <button type="button" onClick={() => { loadNoteForEdit(viewNote); setViewNote(null); }}>Edit this note</button>

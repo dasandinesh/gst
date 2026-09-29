@@ -9,6 +9,13 @@ const userSchema = new mongoose.Schema({
   // can't be used to reset anyone's password.
   resetPasswordTokenHash: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
+  // Platform-wide admin flag — separate from the per-business owner/staff
+  // roles in Membership. Grants access to the /api/admin/* endpoints, which
+  // can see and manage every user/business, not just one tenant.
+  isSuperAdmin: { type: Boolean, default: false },
+  // Set by an admin to lock a user out of both the normal app and (if they're
+  // also a super admin) the admin panel, without deleting their data.
+  isDisabled: { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

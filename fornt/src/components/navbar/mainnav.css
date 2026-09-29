@@ -1,46 +1,58 @@
+/* Main navigation — a left sidebar on desktop (AppShell in App.js puts it in
+   the first column), a top bar with a hamburger panel on phones (≤ 900px). */
 .mainnav {
   position: sticky;
   z-index: 20;
   top: 0;
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
-  min-height: 66px;
-  padding: 0 clamp(18px, 5%, 60px);
-  gap: 24px;
-  background: linear-gradient(120deg, #12352c 0%, #1c4a3c 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, .08);
-  box-shadow: 0 6px 24px rgba(9, 28, 22, .22);
+  flex-direction: column;
+  gap: 14px;
+  flex: 0 0 240px;
+  align-self: flex-start; /* keeps it pinned (sticky) while the page scrolls */
+  width: 240px;
+  height: 100vh;
+  padding: 18px 12px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #12352c 0%, #1c4a3c 100%);
+  border-right: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 6px 0 24px rgba(9, 28, 22, .18);
 }
 
-.mainnav-logo, .mainnav-user { display: flex; align-items: center; flex: 0 0 auto; }
-.mainnav-logo img {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  border-radius: 10px;
+/* Business + user name at the top (links to Profile). */
+.mainnav-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  line-height: 1.25;
+  color: #fff;
+  font-size: 12px;
+  text-decoration: none;
   background: rgba(255, 255, 255, .06);
-  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 10px;
 }
+.mainnav-user-info:hover { background: rgba(255, 255, 255, .1); }
+.mainnav-business-name { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mainnav-user-name { opacity: .8; }
 
 .mainnav-links {
   display: flex;
-  align-items: center;
-  justify-content: center;
   flex: 1;
+  flex-direction: column;
   gap: 4px;
-  flex-wrap: wrap;
 }
 
-/* Icon shared by top-level links, dropdown toggles, and dropdown menu items. */
-.nav-icon { flex: 0 0 auto; opacity: .82; transition: opacity .16s ease, transform .16s ease; }
+/* Icon shared by links, group headings and group items. */
+.nav-icon { flex: 0 0 auto; opacity: .82; transition: opacity .16s ease; }
 
 .mainnav-link {
-  position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 9px 13px;
-  color: rgba(232, 243, 239, .78);
+  gap: 9px;
+  padding: 9px 12px;
+  color: rgba(232, 243, 239, .8);
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: .2px;
@@ -48,171 +60,98 @@
   border-radius: 8px;
   transition: color .16s ease, background-color .16s ease;
 }
-.mainnav-link::after {
-  content: "";
-  position: absolute;
-  left: 13px;
-  right: 13px;
-  bottom: 3px;
-  height: 2px;
-  border-radius: 2px;
-  background: #7fd8b6;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform .18s ease;
-}
 .mainnav-link:hover, .mainnav-link:focus-visible {
   color: #fff;
-  background: rgba(255, 255, 255, .07);
+  background: rgba(255, 255, 255, .08);
   outline: none;
 }
 .mainnav-link:hover .nav-icon, .mainnav-link:focus-visible .nav-icon { opacity: 1; }
-.mainnav-link:hover::after, .mainnav-link:focus-visible::after { transform: scaleX(1); }
 
-/* Current route: filled pill + solid icon, no hover underline needed. */
+/* Current page: filled pill. */
 .mainnav-link.is-active {
   color: #0c261f;
   background: #7fd8b6;
   font-weight: 700;
 }
 .mainnav-link.is-active .nav-icon { opacity: 1; }
-.mainnav-link.is-active::after { content: none; }
 
-/* Master / Accounts dropdown */
-.mainnav-dropdown { position: relative; display: flex; align-items: center; }
+/* Collapsible groups (Transactions, Estimate, Notes, Accounts, Reports, Master). */
+.mainnav-dropdown { display: flex; flex-direction: column; }
 .mainnav-dropdown-toggle {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 15px;
-  color: rgba(232, 243, 239, .82);
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  color: rgba(232, 243, 239, .85);
+  font-family: inherit;
   font-size: 13.5px;
   font-weight: 700;
   letter-spacing: .3px;
-  font-family: inherit;
-  background: rgba(255, 255, 255, .06);
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 999px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+  transition: background-color .16s ease, color .16s ease;
 }
 .mainnav-dropdown-toggle::after {
   content: "";
   width: 6px;
   height: 6px;
-  margin-left: 2px;
+  margin-left: auto;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg) translateY(-1px);
   transition: transform .2s ease;
 }
-.mainnav-dropdown:hover .mainnav-dropdown-toggle,
-.mainnav-dropdown:focus-within .mainnav-dropdown-toggle {
+.mainnav-dropdown-toggle:hover, .mainnav-dropdown-toggle:focus-visible {
   color: #fff;
-  background: #2c7159;
-  border-color: rgba(127, 216, 182, .5);
-}
-.mainnav-dropdown:hover .mainnav-dropdown-toggle .nav-icon,
-.mainnav-dropdown:focus-within .mainnav-dropdown-toggle .nav-icon { opacity: 1; }
-.mainnav-dropdown:hover .mainnav-dropdown-toggle::after,
-.mainnav-dropdown:focus-within .mainnav-dropdown-toggle::after { transform: rotate(225deg) translateY(-1px); }
-
-.mainnav-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  min-width: 220px;
-  padding: 8px;
-  background: #ffffff;
-  border: 1px solid rgba(18, 53, 44, .1);
-  border-radius: 14px;
-  box-shadow: 0 18px 40px rgba(9, 28, 22, .26);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px);
-  transition: opacity .16s ease, transform .16s ease, visibility .16s;
-}
-.mainnav-dropdown-menu::before {
-  content: "";
-  position: absolute;
-  top: -6px;
-  left: 24px;
-  width: 12px;
-  height: 12px;
-  background: inherit;
-  border-left: inherit;
-  border-top: inherit;
-  transform: rotate(45deg);
-}
-.mainnav-dropdown:hover .mainnav-dropdown-menu,
-.mainnav-dropdown:focus-within .mainnav-dropdown-menu {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-.mainnav-dropdown-menu .mainnav-link {
-  padding: 10px 12px;
-  color: #1f4b3e;
-  border-radius: 9px;
-}
-.mainnav-dropdown-menu .mainnav-link .nav-icon { opacity: .65; }
-.mainnav-dropdown-menu .mainnav-link::after { content: none; }
-.mainnav-dropdown-menu .mainnav-link:hover,
-.mainnav-dropdown-menu .mainnav-link:focus-visible {
-  color: #12352c;
-  background: #e6f4ee;
+  background: rgba(255, 255, 255, .08);
   outline: none;
 }
-.mainnav-dropdown-menu .mainnav-link:hover .nav-icon,
-.mainnav-dropdown-menu .mainnav-link:focus-visible .nav-icon { opacity: 1; }
-.mainnav-dropdown-menu .mainnav-link.is-active {
-  color: #0c261f;
-  background: #d6f0e4;
-}
+.mainnav-dropdown.is-open .mainnav-dropdown-toggle { color: #fff; }
+.mainnav-dropdown.is-open .mainnav-dropdown-toggle::after { transform: rotate(225deg) translateY(-1px); }
 
-.mainnav-user { gap: 10px; }
-.mainnav-user-avatar {
-  display: flex;
-  flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  background: #e1f2e9;
-  border: 2px solid rgba(255, 255, 255, .35);
-  border-radius: 50%;
-}
-.mainnav-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.mainnav-user-info {
+.mainnav-dropdown-menu {
   display: flex;
   flex-direction: column;
-  line-height: 1.25;
-  color: #fff;
-  font-size: 12px;
-  white-space: nowrap;
+  gap: 2px;
+  max-height: 0;
+  margin-left: 18px;
+  padding-left: 8px;
+  overflow: hidden;
+  border-left: 1px solid rgba(255, 255, 255, .12);
+  transition: max-height .2s ease, padding .2s ease;
 }
-.mainnav-business-name { font-weight: 700; }
-.mainnav-user-name { opacity: .8; }
+.mainnav-dropdown.is-open .mainnav-dropdown-menu { max-height: 600px; padding-top: 2px; padding-bottom: 4px; }
+.mainnav-dropdown-menu .mainnav-link { padding: 7px 10px; font-size: 13px; font-weight: 500; }
+.mainnav-dropdown-menu .mainnav-link .nav-icon { opacity: .7; }
+.mainnav-dropdown-menu .mainnav-link.is-active { color: #0c261f; background: #7fd8b6; font-weight: 700; }
+
+/* Preferences + Log out pinned to the bottom of the sidebar. */
+.mainnav-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+}
 .mainnav-logout {
-  flex: 0 0 auto;
-  padding: 6px 12px;
+  padding: 8px 12px;
   font: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #fff;
   background: rgba(255, 255, 255, .12);
   border: 1px solid rgba(255, 255, 255, .3);
-  border-radius: 7px;
+  border-radius: 8px;
   cursor: pointer;
-  white-space: nowrap;
 }
 .mainnav-logout:hover { background: rgba(255, 255, 255, .22); }
 
-/* Hamburger toggler — hidden above the mobile breakpoint (see media query below). */
+/* Hamburger toggler — phones only (see media query below). */
 .mainnav-toggler {
   display: none;
   flex-direction: column;
@@ -237,27 +176,36 @@
   border-radius: 2px;
   transition: transform .18s ease, opacity .18s ease;
 }
-/* Animates into an "X" when the panel is open, like Bootstrap's collapsed toggler icon. */
+/* Animates into an "X" when the panel is open. */
 .mainnav-toggler.is-open .mainnav-toggler-bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 .mainnav-toggler.is-open .mainnav-toggler-bar:nth-child(2) { opacity: 0; }
 .mainnav-toggler.is-open .mainnav-toggler-bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
 @media (max-width: 900px) {
-  .mainnav { align-items: center; flex-wrap: wrap; padding: 12px 18px; gap: 12px; }
-  .mainnav-logo { order: 0; }
-  .mainnav-toggler { display: inline-flex; order: 1; margin-left: auto; }
-  .mainnav-user { order: 2; }
+  /* Top bar: business name on the left, hamburger on the right. */
+  .mainnav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 0 0 auto;
+    align-self: stretch;
+    width: auto;
+    height: auto;
+    padding: 10px 16px;
+    gap: 10px;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    box-shadow: 0 6px 24px rgba(9, 28, 22, .22);
+  }
+  .mainnav-user-info { flex: 1; min-width: 0; padding: 6px 10px; }
+  .mainnav-toggler { display: inline-flex; }
 
-  /* Collapsed by default; the toggler adds/removes .is-open to slide it in. */
+  /* Links panel: collapsed until the hamburger adds .is-open. */
   .mainnav-links {
-    order: 3;
     flex-basis: 100%;
     display: none;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    gap: 4px;
-    max-height: calc(100vh - 90px);
+    max-height: calc(100vh - 80px);
     overflow-y: auto;
   }
   .mainnav-links.is-open {
@@ -268,44 +216,5 @@
     from { opacity: 0; transform: translateY(-6px); }
     to { opacity: 1; transform: translateY(0); }
   }
-
-  .mainnav-link { flex: 0 0 auto; }
-  .mainnav-dropdown { flex: 0 0 auto; flex-direction: column; align-items: stretch; }
-  .mainnav-dropdown-toggle { justify-content: flex-start; border-radius: 8px; }
-  .mainnav-dropdown-toggle::after { margin-left: auto; }
-
-  /* Collapsed by default — the toggle button's onClick adds .is-open on the
-     .mainnav-dropdown wrapper (not on hover, which doesn't exist on touch). */
-  .mainnav-dropdown-menu {
-    position: static;
-    min-width: 0;
-    max-height: 0;
-    padding: 0 0 0 14px;
-    margin: 0;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    overflow: hidden;
-    transition: max-height .2s ease, padding .2s ease;
-  }
-  .mainnav-dropdown.is-open .mainnav-dropdown-menu {
-    max-height: 400px;
-    padding: 4px 0 4px 14px;
-  }
-  .mainnav-dropdown.is-open .mainnav-dropdown-toggle {
-    color: #fff;
-    background: #2c7159;
-  }
-  .mainnav-dropdown.is-open .mainnav-dropdown-toggle::after {
-    transform: rotate(225deg) translateY(-1px);
-  }
-  .mainnav-dropdown-menu::before { content: none; }
-  .mainnav-dropdown-menu .mainnav-link { color: rgba(232, 243, 239, .8); }
-  .mainnav-dropdown-menu .mainnav-link .nav-icon { opacity: .75; }
-  .mainnav-dropdown-menu .mainnav-link:hover,
-  .mainnav-dropdown-menu .mainnav-link:focus-visible { color: #fff; background: rgba(255, 255, 255, .08); }
-  .mainnav-dropdown-menu .mainnav-link.is-active { color: #fff; background: rgba(127, 216, 182, .25); }
+  .mainnav-bottom { margin-top: 6px; }
 }

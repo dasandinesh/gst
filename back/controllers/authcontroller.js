@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const User = require('../model/usermodel');
 const Business = require('../model/businessmodel');
 const Membership = require('../model/membershipmodel');
+const InvoiceSetting = require('../model/invoice_settings');
+const { normalizeGstin } = require('../utils/gstin');
 const { verifyToken, signSessionToken, signPendingToken, sessionCookieOptions, pendingCookieOptions, clearCookieOptions } = require('../config/jwt');
 const { sendMail } = require('../config/mailer');
 
@@ -29,7 +31,7 @@ exports.signup = async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email: email.toLowerCase().trim(), passwordHash });
-    const business = await Business.create({ name: businessName, gstin, phone, door, street, area, district, state, pincode });
+    const business = await Business.create({ name: businessName, gstin: normalizeGstin(gstin), phone, door, street, area, district, state, pincode });
     await Membership.create({ user: user._id, business: business._id, role: 'owner' });
 
     const token = signSessionToken({ userId: user._id, businessId: business._id, role: 'owner' });
@@ -53,6 +55,7 @@ exports.login = async (req, res) => {
 
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) return res.status(401).json({ error: 'Invalid email or password.' });
+    if (user.isDisabled) return res.status(403).json({ error: 'This account has been disabled. Contact support.' });
 
     const memberships = await Membership.find({ user: user._id }).populate('business');
     if (!memberships.length) return res.status(403).json({ error: 'No business is linked to this account.' });
@@ -123,6 +126,61 @@ exports.me = async (req, res) => {
       role: req.auth.role,
       businesses: memberships.map((m) => ({ ...publicBusiness(m.business), role: m.role })),
     });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const BUSINESS_FIELDS = ['name', 'gstin', 'phone', 'door', 'street', 'area', 'district', 'state', 'pincode'];
+const profileOf = (user, business, role) => ({
+  user: publicUser(user),
+  business: BUSINESS_FIELDS.reduce((acc, k) => ({ ...acc, [k]: business[k] || '' }), { id: business._id }),
+  role,
+});
+
+// The logged-in user's own details plus the full active business record
+// (unlike /me, which only carries what the nav needs).
+exports.getProfile = async (req, res) => {
+  try {
+    const [user, business] = await Promise.all([User.findById(req.auth.userId), Business.findById(req.auth.businessId)]);
+    if (!user || !business) return res.status(401).json({ error: 'Session is no longer valid.' });
+    res.status(200).json(profileOf(user, business, req.auth.role));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Body: { user: { name }, business: { name, gstin, ... }, syncInvoiceGstin }.
+// Anyone can rename themselves; only the owner can change the business. With
+// syncInvoiceGstin the new GSTIN is also written onto every invoice setting, so
+// the GSTIN on printed bills and on GSTR-1 can't drift apart.
+exports.updateProfile = async (req, res) => {
+  try {
+    const [user, business] = await Promise.all([User.findById(req.auth.userId), Business.findById(req.auth.businessId)]);
+    if (!user || !business) return res.status(401).json({ error: 'Session is no longer valid.' });
+    const { user: userBody, business: businessBody, syncInvoiceGstin } = req.body || {};
+
+    if (userBody && 'name' in userBody) {
+      const name = String(userBody.name || '').trim();
+      if (!name) return res.status(400).json({ error: 'Your name cannot be empty.' });
+      user.name = name;
+    }
+
+    if (businessBody) {
+      if (req.auth.role !== 'owner') return res.status(403).json({ error: 'Only the business owner can change business details.' });
+      BUSINESS_FIELDS.forEach((k) => {
+        if (k in businessBody) business[k] = String(businessBody[k] ?? '').trim();
+      });
+      if (!business.name) return res.status(400).json({ error: 'Business name cannot be empty.' });
+      business.gstin = normalizeGstin(business.gstin);
+    }
+
+    await Promise.all([user.save(), business.save()]);
+    // Never sync a blank — clearing the profile GSTIN shouldn't wipe the one on bills.
+    if (businessBody && syncInvoiceGstin && business.gstin) {
+      await InvoiceSetting.updateMany({ businessId: business._id }, { gstin: business.gstin });
+    }
+    res.status(200).json(profileOf(user, business, req.auth.role));
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

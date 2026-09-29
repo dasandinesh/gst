@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { fetchJson } from '../../api';
 import './customeradd.css';
+import { ShippingAddressFields, emptyAddress } from '../common/shippingAddress';
 
 const CustomerAdd = () => {
   const [status, setStatus] = useState({ type: '', message: '' });
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, reset, getValues, setValue, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
       name: '', phone: '', door: '', street: '', area: '', district: '', state: '', pincode: '', oldBalance: 0,
+      shippingAddress: emptyAddress,
       gst_no: '', pan_it_no: '',
       bankDetails: { bankName: '', accountHolderName: '', accountNumber: '', ifscCode: '', branchName: '', accountType: '' },
     },
@@ -67,6 +69,23 @@ const CustomerAdd = () => {
               <label className="customer-field"><span>District</span><input type="text" placeholder="District" {...register('district')} /></label>
               <label className="customer-field"><span>State</span><input type="text" placeholder="State" {...register('state')} /></label>
               <label className="customer-field"><span>Pincode</span><input type="text" inputMode="numeric" placeholder="Pincode" {...register('pincode')} /></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Shipping address</legend>
+            <div className="customer-ship-hint">
+              <span>Default delivery address for bills and delivery challans. Leave empty if goods go to the address above.</span>
+              <button type="button" className="secondary-button" onClick={() => {
+                const v = getValues();
+                ['door', 'street', 'area', 'district', 'state', 'pincode'].forEach((key) => setValue(`shippingAddress.${key}`, v[key] || ''));
+                setValue('shippingAddress.contactName', v.name || '');
+                setValue('shippingAddress.phone', v.phone || '');
+                setValue('shippingAddress.gstin', v.gst_no || '');
+              }}>Copy from address above</button>
+            </div>
+            <div className="customer-form-grid">
+              <ShippingAddressFields register={register} labelClassName="customer-field" />
             </div>
           </fieldset>
 

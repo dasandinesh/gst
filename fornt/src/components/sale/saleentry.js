@@ -119,7 +119,7 @@ const SaleEntry = () => {
             e.preventDefault(); // Prevents accidental form submission
             nextRef.current?.focus();
             if (currentRef === commissionInputRef) {
-                if (!product.name || !product.quantity || !product.scale || !product.single_price) {
+                if (!product.name || !product.quantity || !product.unit || !product.rate) {
                     alert("Please fill in product name, quantity, scale and single price before adding (bags is optional).");
                     return;
                 } else {
@@ -137,7 +137,7 @@ const SaleEntry = () => {
     const handleKeyDownforprice = (e, fieldName, index) => {
         if (e.key === 'Enter') {
             e.preventDefault(); // Prevent form submission on Enter
-            const nextInput = document.querySelector(`input[name="products.${index + 1}.${fieldName}"]`);
+            const nextInput = document.querySelector(`input[name="items.${index + 1}.${fieldName}"]`);
             if (nextInput) {
                 nextInput.focus();
                 nextInput.select(); // Optional: selects text for quick editing
@@ -152,14 +152,14 @@ const SaleEntry = () => {
     const emptyProduct = {
         name: "",
         comment: "",
-        tamil: "",
+        tamilName: "",
         quantity: "",
         bags: "",
-        scale: "mixters",
-        single_price: "",
+        unit: "mixters",
+        rate: "",
         bagRate: "",
-        wage: "",
-        commission: "",
+        wageRate: "",
+        commissionRate: "",
     };
 
     const [product, setProduct] = useState(emptyProduct);
@@ -179,40 +179,40 @@ const SaleEntry = () => {
     const { register, control, handleSubmit, setValue, reset, getValues, watch } = useForm({
         defaultValues: {
             customer: { name: "" },
-            bill_details: {
-                order_sno: "",
-                order_no: "",
+            billDetails: {
+                billNumber: "",
+                orderNumber: "",
                 mainParty: "",
                 date: new Date().toISOString().split("T")[0],
-                bill_date: new Date().toISOString().split("T")[0],
-                total_quantity: "",
-                bag_quantity: "",
+                billDate: new Date().toISOString().split("T")[0],
+                totalQuantity: "",
+                totalBags: "",
                 weight: "",
                 subtotal: "",
-                bagAmountTotal: "",
-                wageTotal: "",
-                commissionTotal: "",
+                totalBagAmount: "",
+                totalWage: "",
+                totalCommission: "",
                 freight: "",
-                bill_amount: "",
+                grandTotal: "",
                 balance: "",
-                old_balance: "",
-                net_balance: "",
+                openingBalance: "",
+                closingBalance: "",
                 debit: "",
                 credit: "",
-                remark: "",
+                notes: "",
                 billed: false,
             },
-            products: [],
+            items: [],
         },
     });
     const customerNameRegistration = register("customer.name", { required: "Customer name is required." });
     const { fields, append, remove } = useFieldArray({
         control,
-        name: "products",
+        name: "items",
     });
 
     // Line amount is always Quantity × Single Price. Bags never drive the price.
-    const lineAmount = (item) => Number(item.quantity || 0) * Number(item.single_price || 0);
+    const lineAmount = (item) => Number(item.quantity || 0) * Number(item.rate || 0);
 
     const handleAddProduct = () => {
         if (!productExists(product.name)) {
@@ -225,37 +225,37 @@ const SaleEntry = () => {
         }
         append({
             ...product,
-            base_price: lineAmount(product),
+            amount: lineAmount(product),
         });
         setProduct(emptyProduct);
         calculateTotals();
     };
 
     const calculateTotals = useCallback(() => {
-        const products = getValues("products");
-        const totalQuantity = products.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
-        const totalBagQuantity = products.reduce((sum, p) => sum + Number(p.bags || 0), 0);
-        const totalWeight = products.reduce((sum, p) => sum + (Number(p.quantity || 0) * Number(p.scale || 0)), 0);
-        const subtotal = products.reduce((sum, p) => sum + lineAmount(p), 0);
+        const items = getValues("items");
+        const totalQuantity = items.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
+        const totalBags = items.reduce((sum, p) => sum + Number(p.bags || 0), 0);
+        const totalWeight = items.reduce((sum, p) => sum + (Number(p.quantity || 0) * Number(p.unit || 0)), 0);
+        const subtotal = items.reduce((sum, p) => sum + lineAmount(p), 0);
         // Bag price / wage / commission only apply when a bag count is entered on the line.
         const bagCharge = (p, rateField) => (Number(p.bags || 0) > 0 ? Number(p.bags) * Number(p[rateField] || 0) : 0);
-        const bagAmountTotal = products.reduce((sum, p) => sum + bagCharge(p, 'bagRate'), 0);
-        const wageTotal = products.reduce((sum, p) => sum + bagCharge(p, 'wage'), 0);
-        const commissionTotal = products.reduce((sum, p) => sum + bagCharge(p, 'commission'), 0);
-        const freight = Number(getValues('bill_details.freight') || 0);
-        setValue('bill_details.total_quantity', totalQuantity);
-        setValue('bill_details.bag_quantity', totalBagQuantity);
-        setValue('bill_details.weight', totalWeight);
-        setValue('bill_details.subtotal', subtotal);
-        setValue('bill_details.bagAmountTotal', bagAmountTotal);
-        setValue('bill_details.wageTotal', wageTotal);
-        setValue('bill_details.commissionTotal', commissionTotal);
-        setValue('bill_details.bill_amount', subtotal + bagAmountTotal + wageTotal + commissionTotal + freight);
+        const totalBagAmount = items.reduce((sum, p) => sum + bagCharge(p, 'bagRate'), 0);
+        const totalWage = items.reduce((sum, p) => sum + bagCharge(p, 'wageRate'), 0);
+        const totalCommission = items.reduce((sum, p) => sum + bagCharge(p, 'commissionRate'), 0);
+        const freight = Number(getValues('billDetails.freight') || 0);
+        setValue('billDetails.totalQuantity', totalQuantity);
+        setValue('billDetails.totalBags', totalBags);
+        setValue('billDetails.weight', totalWeight);
+        setValue('billDetails.subtotal', subtotal);
+        setValue('billDetails.totalBagAmount', totalBagAmount);
+        setValue('billDetails.totalWage', totalWage);
+        setValue('billDetails.totalCommission', totalCommission);
+        setValue('billDetails.grandTotal', subtotal + totalBagAmount + totalWage + totalCommission + freight);
     }, [getValues, setValue]);
 
     // Recalculate every total whenever ANY field of ANY product row changes — typing in a
     // cell, adding/removing a row, or reordering — without wiring onChange on each input.
-    const watchedProducts = watch('products');
+    const watchedProducts = watch('items');
     useEffect(() => {
         calculateTotals();
     }, [watchedProducts, calculateTotals]);
@@ -263,43 +263,43 @@ const SaleEntry = () => {
     // When Quantity or Bags in a table row loses focus, recompute that row's Price
     // (Quantity × Single Price) so it reflects the new value straight away.
     const syncLineAmount = (index) => {
-        const row = getValues(`products.${index}`);
-        setValue(`products.${index}.base_price`, lineAmount(row));
+        const row = getValues(`items.${index}`);
+        setValue(`items.${index}.amount`, lineAmount(row));
     };
     const up = (index) => {
         if (index > 0) {
-            const values = getValues("products");
+            const values = getValues("items");
             [values[index], values[index - 1]] = [values[index - 1], values[index]];
-            reset({ ...getValues(), products: values });
+            reset({ ...getValues(), items: values });
             calculateTotals();
         }
     };
     const blankForm = () => ({
         customer: { name: "" },
-        bill_details: {
-            order_sno: "",
-            order_no: "",
+        billDetails: {
+            billNumber: "",
+            orderNumber: "",
             mainParty: "",
             date: todayString(),
-            bill_date: todayString(),
-            total_quantity: "",
-            bag_quantity: "",
+            billDate: todayString(),
+            totalQuantity: "",
+            totalBags: "",
             weight: "",
             subtotal: "",
-            bagAmountTotal: "",
-            wageTotal: "",
-            commissionTotal: "",
+            totalBagAmount: "",
+            totalWage: "",
+            totalCommission: "",
             freight: "",
-            bill_amount: "",
+            grandTotal: "",
             balance: "",
-            old_balance: "",
-            net_balance: "",
+            openingBalance: "",
+            closingBalance: "",
             debit: "",
             credit: "",
-            remark: "",
+            notes: "",
             billed: false,
         },
-        products: [],
+        items: [],
     });
 
     const handleNewSale = () => {
@@ -315,30 +315,30 @@ const SaleEntry = () => {
     // Load an existing sale from the summary list back into the form for editing.
     const handleEdit = (sale) => {
         setEditingId(sale._id);
-        setIsSubscribed(Boolean(sale.bill_details?.billed));
+        setIsSubscribed(Boolean(sale.billDetails?.billed));
         setSaveStatus('');
         setCustomerWarning('');
         setProductWarning('');
         reset({
             customer: { name: sale.customer?.name || "" },
-            bill_details: {
-                ...blankForm().bill_details,
-                ...sale.bill_details,
-                date: toDateInput(sale.bill_details?.date),
-                bill_date: toDateInput(sale.bill_details?.bill_date),
+            billDetails: {
+                ...blankForm().billDetails,
+                ...sale.billDetails,
+                date: toDateInput(sale.billDetails?.date),
+                billDate: toDateInput(sale.billDetails?.billDate),
             },
-            products: (sale.products || []).map((item) => ({
+            items: (sale.items || []).map((item) => ({
                 name: item.name || "",
                 comment: item.comment || "",
-                tamil: item.tamil || "",
+                tamilName: item.tamilName || "",
                 quantity: item.quantity ?? "",
                 bags: item.bags ?? "",
-                scale: item.scale || "",
-                single_price: item.single_price ?? "",
-                base_price: item.base_price ?? "",
+                unit: item.unit || "",
+                rate: item.rate ?? "",
+                amount: item.amount ?? "",
                 bagRate: item.bagRate ?? "",
-                wage: item.wage ?? "",
-                commission: item.commission ?? "",
+                wageRate: item.wageRate ?? "",
+                commissionRate: item.commissionRate ?? "",
             })),
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -356,26 +356,26 @@ const SaleEntry = () => {
         setProductWarning('');
         reset({
             customer: { name: order.customer?.name || "" },
-            bill_details: { ...blankForm().bill_details },
-            products: (order.products || []).map((item) => {
+            billDetails: { ...blankForm().billDetails },
+            items: (order.items || []).map((item) => {
                 const prod = productList.find((p) => p.name?.toLowerCase() === (item.name || '').trim().toLowerCase());
                 const mapped = {
                     name: item.name || "",
                     comment: item.comment || "",
-                    tamil: prod?.Tamil || prod?.tamil || "",
+                    tamilName: prod?.Tamil || prod?.tamil || "",
                     quantity: item.quantity ?? "",
                     bags: item.bags ?? "",
-                    scale: item.scale || prod?.Unit || "",
-                    single_price: prod ? prod.Price : (item.single_price ?? ""),
+                    unit: item.unit || prod?.Unit || "",
+                    rate: prod ? prod.Price : (item.rate ?? ""),
                     bagRate: prod ? (prod.pags ?? "") : "",
-                    wage: prod ? (prod.Wages ?? "") : "",
-                    commission: prod ? (prod.commission ?? "") : "",
+                    wageRate: prod ? (prod.Wages ?? "") : "",
+                    commissionRate: prod ? (prod.commission ?? "") : "",
                 };
-                return { ...mapped, base_price: lineAmount(mapped) };
+                return { ...mapped, amount: lineAmount(mapped) };
             }),
         });
         calculateTotals();
-        setSaveStatus(`Sale entry filled from order ${order.bill_details?.order_sno || ''}. Review and save.`);
+        setSaveStatus(`Sale entry filled from order ${order.billDetails?.billNumber || ''}. Review and save.`);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -405,7 +405,7 @@ const SaleEntry = () => {
             const rowIndex = saleSummary.indexOf(match);
             setSelectedRow(rowIndex);
             handleEdit(match);
-            setSaveStatus(`Existing sale ${match.bill_details?.order_sno || ''} loaded for editing.`);
+            setSaveStatus(`Existing sale ${match.billDetails?.billNumber || ''} loaded for editing.`);
         }
     };
 
@@ -487,7 +487,7 @@ const SaleEntry = () => {
         const grouped = new Map();
         saleSummary.forEach((sale) => {
             const name = sale.customer?.name || 'Unknown';
-            const mixerProducts = (sale.products || []).filter((item) => item.scale === 'mixters');
+            const mixerProducts = (sale.items || []).filter((item) => item.unit === 'mixters');
             if (!mixerProducts.length) return;
             if (!grouped.has(name)) grouped.set(name, []);
             grouped.get(name).push(...mixerProducts);
@@ -500,7 +500,7 @@ const SaleEntry = () => {
 
         const rows = Array.from(grouped.entries()).map(([customer, products]) => {
             const productText = products
-                .map((item) => `${item.name} ${item.quantity}${item.scale || ''}`)
+                .map((item) => `${item.name} ${item.quantity}${item.unit || ''}`)
                 .join(', ');
             return `<div class="customer-block"><span class="customer-name">${customer}</span> — ${productText}</div>`;
         }).join('');
@@ -583,20 +583,20 @@ const SaleEntry = () => {
             setCustomerWarning('This customer is not in the list. Please add the customer first.');
             return;
         }
-        const unknownProduct = (data.products || []).find((item) => item.name && !productExists(item.name));
+        const unknownProduct = (data.items || []).find((item) => item.name && !productExists(item.name));
         if (unknownProduct) {
             setSaveStatus(`Product "${unknownProduct.name}" is not in the list. Please add it first.`);
             return;
         }
         const payload = {
             ...data,
-            bill_details: { ...data.bill_details, billed: isSubscribed },
+            billDetails: { ...data.billDetails, billed: isSubscribed },
         };
         try {
             const response = editingId
                 ? await axios.put(`/api/sales/${editingId}`, payload)
                 : await axios.post('/api/sales', payload);
-            const sno = response.data.bill_details?.order_sno || '';
+            const sno = response.data.billDetails?.billNumber || '';
             setSaveStatus(`Sale ${sno} ${editingId ? 'updated' : 'saved'} successfully.`);
             setEditingId(null);
             setIsSubscribed(false);
@@ -642,10 +642,10 @@ const SaleEntry = () => {
                         </datalist>
                     
                         <div><label>Bill Date:</label><br></br>
-                            <input type="date" {...register("bill_details.date")} /></div>
+                            <input type="date" {...register("billDetails.date")} /></div>
 
                         <div> <label>Bill Number:</label>
-                            <input type="text" placeholder="Auto" {...register("bill_details.order_sno")} /></div>
+                            <input type="text" placeholder="Auto" {...register("billDetails.billNumber")} /></div>
                     </div>
                     <div>
                         <div className="sale-product-input-grid">
@@ -667,11 +667,11 @@ const SaleEntry = () => {
                                         setProduct({
                                             ...product,
                                             name: val,
-                                            tamil: selectedProduct?.tamil || selectedProduct?.Tamil || "",
-                                            single_price: selectedProduct ? selectedProduct.Price : "",
+                                            tamilName: selectedProduct?.tamil || selectedProduct?.Tamil || "",
+                                            rate: selectedProduct ? selectedProduct.Price : "",
                                             bagRate: selectedProduct ? (selectedProduct.pags ?? "") : "",
-                                            wage: selectedProduct ? (selectedProduct.Wages ?? "") : "",
-                                            commission: selectedProduct ? (selectedProduct.commission ?? "") : "",
+                                            wageRate: selectedProduct ? (selectedProduct.Wages ?? "") : "",
+                                            commissionRate: selectedProduct ? (selectedProduct.commission ?? "") : "",
                                         });
                                     }}
                                     onBlur={(e) => setProductWarning(productExists(e.target.value) ? '' : 'This product is not in the list. Please add the product first.')}
@@ -719,7 +719,7 @@ const SaleEntry = () => {
                                         setProduct({
                                             ...product,
                                             bags,
-                                            scale: bags && selectedProduct?.Unit ? selectedProduct.Unit : product.scale,
+                                            unit: bags && selectedProduct?.Unit ? selectedProduct.Unit : product.unit,
                                         });
                                     }}
                                     placeholder="Bags"
@@ -731,10 +731,10 @@ const SaleEntry = () => {
                                 <br />
                                 <input
                                     type="text"
-                                    name="scale"
-                                    value={product.scale}
+                                    name="unit"
+                                    value={product.unit}
                                     className="sale-small-input"
-                                    onChange={(e) => setProduct({ ...product, scale: e.target.value })}
+                                    onChange={(e) => setProduct({ ...product, unit: e.target.value })}
                                     placeholder="Scale"
                                     ref={scaleInputRef}
                                     onKeyDown={(e) => handleKeyDown(e, scaleInputRef, singlePriceInputRef)}
@@ -753,10 +753,10 @@ const SaleEntry = () => {
                                 <br />
                                 <input
                                     type="number"
-                                    name="single_price"
-                                    value={product.single_price}
+                                    name="rate"
+                                    value={product.rate}
                                     className="sale-small-input"
-                                    onChange={(e) => setProduct({ ...product, single_price: e.target.value })}
+                                    onChange={(e) => setProduct({ ...product, rate: e.target.value })}
                                     placeholder="Price"
                                     ref={singlePriceInputRef}
                                     onKeyDown={(e) => handleKeyDown(e, singlePriceInputRef, bagRateInputRef)}
@@ -781,10 +781,10 @@ const SaleEntry = () => {
                                 <br />
                                 <input
                                     type="number"
-                                    name="wage"
-                                    value={product.wage}
+                                    name="wageRate"
+                                    value={product.wageRate}
                                     className="sale-small-input"
-                                    onChange={(e) => setProduct({ ...product, wage: e.target.value })}
+                                    onChange={(e) => setProduct({ ...product, wageRate: e.target.value })}
                                     placeholder="Wage"
                                     ref={wageInputRef}
                                     onKeyDown={(e) => handleKeyDown(e, wageInputRef, commissionInputRef)}
@@ -795,10 +795,10 @@ const SaleEntry = () => {
                                 <br />
                                 <input
                                     type="number"
-                                    name="commission"
-                                    value={product.commission}
+                                    name="commissionRate"
+                                    value={product.commissionRate}
                                     className="sale-small-input"
-                                    onChange={(e) => setProduct({ ...product, commission: e.target.value })}
+                                    onChange={(e) => setProduct({ ...product, commissionRate: e.target.value })}
                                     placeholder="Commission"
                                     ref={commissionInputRef}
                                     onKeyDown={(e) => handleKeyDown(e, commissionInputRef, productNameInputRef)}
@@ -843,7 +843,7 @@ const SaleEntry = () => {
                                         <td className="sale-product-name-cell">
                                             <input
                                                 className="sale-product-name-cell sale-textInput" type="text"
-                                                {...register(`products.${index}.name`)}
+                                                {...register(`items.${index}.name`)}
                                                 list='product-list'
                                             />
                                         </td>
@@ -856,7 +856,7 @@ const SaleEntry = () => {
                                             <input
                                                 className="sale-product-quantity-cell"
                                                 type="number"
-                                                {...register(`products.${index}.quantity`, { onBlur: () => syncLineAmount(index) })}
+                                                {...register(`items.${index}.quantity`, { onBlur: () => syncLineAmount(index) })}
                                                 onKeyDown={(e) => handleKeyDownforprice(e, "quantity", index)}
                                             />
                                         </td>
@@ -864,7 +864,7 @@ const SaleEntry = () => {
                                             <input
                                                 className="sale-product-quantity-cell"
                                                 type="number"
-                                                {...register(`products.${index}.bags`, { onBlur: () => syncLineAmount(index) })}
+                                                {...register(`items.${index}.bags`, { onBlur: () => syncLineAmount(index) })}
                                                 onKeyDown={(e) => handleKeyDownforprice(e, "bags", index)}
                                             />
                                         </td>
@@ -873,8 +873,8 @@ const SaleEntry = () => {
                                                 className="sale-product-quantity-cell"
                                                 type="number"
                                                 step="0.01"
-                                                {...register(`products.${index}.single_price`, { onBlur: () => syncLineAmount(index) })}
-                                                onKeyDown={(e) => handleKeyDownforprice(e, "single_price", index)}
+                                                {...register(`items.${index}.rate`, { onBlur: () => syncLineAmount(index) })}
+                                                onKeyDown={(e) => handleKeyDownforprice(e, "rate", index)}
                                             />
                                         </td>
                                         <td className="sale-product-quantity-cell">
@@ -882,8 +882,8 @@ const SaleEntry = () => {
                                                 className="sale-product-quantity-cell"
                                                 type="number"
                                                 step="0.01"
-                                                {...register(`products.${index}.base_price`)}
-                                                onKeyDown={(e) => handleKeyDownforprice(e, "base_price", index)}
+                                                {...register(`items.${index}.amount`)}
+                                                onKeyDown={(e) => handleKeyDownforprice(e, "amount", index)}
                                             />
                                         </td>
                                         <td className="sale-product-quantity-cell">
@@ -891,7 +891,7 @@ const SaleEntry = () => {
                                                 className="sale-product-quantity-cell"
                                                 type="number"
                                                 step="0.01"
-                                                {...register(`products.${index}.bagRate`, { onBlur: () => syncLineAmount(index) })}
+                                                {...register(`items.${index}.bagRate`, { onBlur: () => syncLineAmount(index) })}
                                                 onKeyDown={(e) => handleKeyDownforprice(e, "bagRate", index)}
                                             />
                                         </td>
@@ -900,8 +900,8 @@ const SaleEntry = () => {
                                                 className="sale-product-quantity-cell"
                                                 type="number"
                                                 step="0.01"
-                                                {...register(`products.${index}.wage`, { onBlur: () => syncLineAmount(index) })}
-                                                onKeyDown={(e) => handleKeyDownforprice(e, "wage", index)}
+                                                {...register(`items.${index}.wageRate`, { onBlur: () => syncLineAmount(index) })}
+                                                onKeyDown={(e) => handleKeyDownforprice(e, "wageRate", index)}
                                             />
                                         </td>
                                         <td className="sale-product-quantity-cell">
@@ -909,8 +909,8 @@ const SaleEntry = () => {
                                                 className="sale-product-quantity-cell"
                                                 type="number"
                                                 step="0.01"
-                                                {...register(`products.${index}.commission`, { onBlur: () => syncLineAmount(index) })}
-                                                onKeyDown={(e) => handleKeyDownforprice(e, "commission", index)}
+                                                {...register(`items.${index}.commissionRate`, { onBlur: () => syncLineAmount(index) })}
+                                                onKeyDown={(e) => handleKeyDownforprice(e, "commissionRate", index)}
                                             />
                                         </td>
                                         <td className="sale-product-quantity-cell">
@@ -927,63 +927,63 @@ const SaleEntry = () => {
                     <div className="sale-bill-total-summary">
                         <div >
                             <label>Total Quantity:</label>
-                            <input className='number' type="number" {...register("bill_details.total_quantity")} />
+                            <input className='number' type="number" {...register("billDetails.totalQuantity")} />
                         </div>
                         <div >
                             <label>Total Bag Quantity:</label>
-                            <input className='number' type="number" {...register("bill_details.bag_quantity")} />
+                            <input className='number' type="number" {...register("billDetails.totalBags")} />
                         </div>
                         <div>
                             <label>Total Weight:</label>
-                            <input className='number' type="number" {...register("bill_details.weight")} />
+                            <input className='number' type="number" {...register("billDetails.weight")} />
                         </div>
                         <div>
                             <label>Subtotal:</label>
-                            <input className='number' type="number" {...register("bill_details.subtotal")} />
+                            <input className='number' type="number" {...register("billDetails.subtotal")} />
                         </div>
                         <div>
                             <label>Bag Amount Total:</label>
-                            <input className='number' type="number" {...register("bill_details.bagAmountTotal")} />
+                            <input className='number' type="number" {...register("billDetails.totalBagAmount")} />
                         </div>
                         <div>
                             <label>Wage Total:</label>
-                            <input  className='number' type="number" {...register("bill_details.wageTotal")} />
+                            <input  className='number' type="number" {...register("billDetails.totalWage")} />
                         </div>
                         <div>
                             <label>Commission Total:</label>
-                            <input className='number' type="number" {...register("bill_details.commissionTotal")} />
+                            <input className='number' type="number" {...register("billDetails.totalCommission")} />
                         </div>
                         <div>
                             <label>Freight:</label>
                             <input
                                 type="number"
                                 className='number'
-                                {...register("bill_details.freight", { onChange: calculateTotals })}
+                                {...register("billDetails.freight", { onChange: calculateTotals })}
                             />
                         </div>
                         <div>
                             <label>Grand Total:</label>
-                            <input type="number" {...register("bill_details.bill_amount")} />
+                            <input type="number" {...register("billDetails.grandTotal")} />
                         </div>
                         <div>
                             <label>Opening Balance:</label>
-                            <input className='number' type="number" readOnly {...register("bill_details.old_balance")} />
+                            <input className='number' type="number" readOnly {...register("billDetails.openingBalance")} />
                         </div>
                         <div>
                             <label>Closing Balance:</label>
-                            <input className='number' type="number" readOnly {...register("bill_details.balance")} />
+                            <input className='number' type="number" readOnly {...register("billDetails.balance")} />
                         </div>
                         <div>
                             <label>Debit (Paymt):</label>
-                            <input className='number' type="number" {...register("bill_details.debit")} />
+                            <input className='number' type="number" {...register("billDetails.debit")} />
                         </div>
                         <div>
                             <label>Credit (Cash):</label>
-                            <input className='number' type="number" {...register("bill_details.credit")} />
+                            <input className='number' type="number" {...register("billDetails.credit")} />
                         </div>
                         <div>
                             <label>Remark:</label>
-                            <input type="text" {...register("bill_details.remark")} />
+                            <input type="text" {...register("billDetails.notes")} />
                         </div>
                         <div>
                             <label>
@@ -1002,7 +1002,7 @@ const SaleEntry = () => {
                         <div><button type="submit">save</button></div>
                         <div><button type="button" onClick={handleDeleteSelected}>delete</button></div>
                     </div>
-                    {editingId && <p role="status">Editing sale {getValues('bill_details.order_sno') || editingId}. Press “new” to cancel.</p>}
+                    {editingId && <p role="status">Editing sale {getValues('billDetails.billNumber') || editingId}. Press “new” to cancel.</p>}
                     {saveStatus && <p role="alert">{saveStatus}</p>}
                 </form>
             </div>
@@ -1062,9 +1062,9 @@ const SaleEntry = () => {
                                             onChange={() => toggleSelectRow(sale._id)}
                                         />
                                     </td>
-                                    <td>{sale.bill_details?.order_sno || '—'}</td>
+                                    <td>{sale.billDetails?.billNumber || '—'}</td>
                                     <td>{sale.customer?.name || '—'}</td>
-                                    <td>{sale.bill_details?.billed ? 'Billed' : 'Pending'}</td>
+                                    <td>{sale.billDetails?.billed ? 'Billed' : 'Pending'}</td>
                                     <td><button type="button" onClick={(e) => { e.stopPropagation(); handlePrintBill(sale); }}>print</button></td>
                                     <td><button type="button" onClick={(e) => { e.stopPropagation(); setViewSale(sale); }}>view</button></td>
                                     <td><button type="button" onClick={(e) => { e.stopPropagation(); setSelectedRow(index); handleEdit(sale); }}>edit</button></td>
@@ -1139,9 +1139,9 @@ const SaleEntry = () => {
                                             onChange={() => toggleOrderSelectRow(order._id)}
                                         />
                                     </td>
-                                    <td>{order.bill_details?.order_sno || '—'}</td>
+                                    <td>{order.billDetails?.billNumber || '—'}</td>
                                     <td>{order.customer?.name || '—'}</td>
-                                    <td>{order.bill_details?.billed ? 'Billed' : 'Pending'}</td>
+                                    <td>{order.billDetails?.billed ? 'Billed' : 'Pending'}</td>
                                     <td><button type="button" onClick={(e) => { e.stopPropagation(); handlePrintBill(order); }}>print</button></td>
                                     <td><button type="button" onClick={(e) => { e.stopPropagation(); setViewOrderBill(order); }}>view</button></td>
                                     <td><button type="button" title="Fill Sale Entry from this order" onClick={(e) => { e.stopPropagation(); handleUseOrderForSale(order); }}>edit</button></td>
@@ -1168,24 +1168,24 @@ const SaleEntry = () => {
                             <button type="button" onClick={() => setViewOrderBill(null)}>✕</button>
                         </div>
                         <div className="sale-view-meta">
-                            <div><span>Bill No.</span><strong>{viewOrderBill.bill_details?.order_sno || '—'}</strong></div>
+                            <div><span>Bill No.</span><strong>{viewOrderBill.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewOrderBill.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewOrderBill.bill_details?.date)}</strong></div>
-                            <div><span>Status</span><strong>{viewOrderBill.bill_details?.billed ? 'Billed' : 'Pending'}</strong></div>
+                            <div><span>Date</span><strong>{toDateInput(viewOrderBill.billDetails?.date)}</strong></div>
+                            <div><span>Status</span><strong>{viewOrderBill.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <table className="sale-view-table">
                             <thead>
                                 <tr><th>Product</th><th>Qty</th><th>Bags</th><th>Scale</th><th>Single price</th><th>Amount</th><th>Bag amt</th><th>Wage</th><th>Comm.</th></tr>
                             </thead>
                             <tbody>
-                                {(viewOrderBill.products || []).map((item, index) => (
+                                {(viewOrderBill.items || []).map((item, index) => (
                                     <tr key={index}>
                                         <td>{item.name}</td>
                                         <td>{item.quantity}</td>
                                         <td>{item.bags}</td>
-                                        <td>{item.scale || '—'}</td>
-                                        <td>{item.single_price}</td>
-                                        <td>{item.base_price}</td>
+                                        <td>{item.unit || '—'}</td>
+                                        <td>{item.rate}</td>
+                                        <td>{item.amount}</td>
                                         <td>{item.bagAmount}</td>
                                         <td>{item.wageAmount}</td>
                                         <td>{item.commissionAmount}</td>
@@ -1194,15 +1194,15 @@ const SaleEntry = () => {
                             </tbody>
                         </table>
                         <div className="sale-view-totals">
-                            <div><span>Total quantity</span><strong>{viewOrderBill.bill_details?.total_quantity || 0}</strong></div>
-                            <div><span>Total bags</span><strong>{viewOrderBill.bill_details?.bag_quantity || 0}</strong></div>
-                            <div><span>Weight</span><strong>{viewOrderBill.bill_details?.weight || 0}</strong></div>
-                            <div><span>Subtotal</span><strong>₹{Number(viewOrderBill.bill_details?.subtotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Bag amount</span><strong>₹{Number(viewOrderBill.bill_details?.bagAmountTotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Wage</span><strong>₹{Number(viewOrderBill.bill_details?.wageTotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Commission</span><strong>₹{Number(viewOrderBill.bill_details?.commissionTotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Freight</span><strong>₹{Number(viewOrderBill.bill_details?.freight || 0).toFixed(2)}</strong></div>
-                            <div><span>Grand total</span><strong>₹{Number(viewOrderBill.bill_details?.bill_amount || 0).toFixed(2)}</strong></div>
+                            <div><span>Total quantity</span><strong>{viewOrderBill.billDetails?.totalQuantity || 0}</strong></div>
+                            <div><span>Total bags</span><strong>{viewOrderBill.billDetails?.totalBags || 0}</strong></div>
+                            <div><span>Weight</span><strong>{viewOrderBill.billDetails?.weight || 0}</strong></div>
+                            <div><span>Subtotal</span><strong>₹{Number(viewOrderBill.billDetails?.subtotal || 0).toFixed(2)}</strong></div>
+                            <div><span>Bag amount</span><strong>₹{Number(viewOrderBill.billDetails?.totalBagAmount || 0).toFixed(2)}</strong></div>
+                            <div><span>Wage</span><strong>₹{Number(viewOrderBill.billDetails?.totalWage || 0).toFixed(2)}</strong></div>
+                            <div><span>Commission</span><strong>₹{Number(viewOrderBill.billDetails?.totalCommission || 0).toFixed(2)}</strong></div>
+                            <div><span>Freight</span><strong>₹{Number(viewOrderBill.billDetails?.freight || 0).toFixed(2)}</strong></div>
+                            <div><span>Grand total</span><strong>₹{Number(viewOrderBill.billDetails?.grandTotal || 0).toFixed(2)}</strong></div>
                         </div>
                         <div className="sale-view-actions">
                             <a href="/order-entry">Go to Order Entry</a>
@@ -1220,24 +1220,24 @@ const SaleEntry = () => {
                             <button type="button" onClick={() => setViewSale(null)}>✕</button>
                         </div>
                         <div className="sale-view-meta">
-                            <div><span>Bill No.</span><strong>{viewSale.bill_details?.order_sno || '—'}</strong></div>
+                            <div><span>Bill No.</span><strong>{viewSale.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewSale.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewSale.bill_details?.date)}</strong></div>
-                            <div><span>Status</span><strong>{viewSale.bill_details?.billed ? 'Billed' : 'Pending'}</strong></div>
+                            <div><span>Date</span><strong>{toDateInput(viewSale.billDetails?.date)}</strong></div>
+                            <div><span>Status</span><strong>{viewSale.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <table className="sale-view-table">
                             <thead>
                                 <tr><th>Product</th><th>Qty</th><th>Bags</th><th>Scale</th><th>Single price</th><th>Amount</th><th>Bag amt</th><th>Wage</th><th>Comm.</th></tr>
                             </thead>
                             <tbody>
-                                {(viewSale.products || []).map((item, index) => (
+                                {(viewSale.items || []).map((item, index) => (
                                     <tr key={index}>
                                         <td>{item.name}</td>
                                         <td>{item.quantity}</td>
                                         <td>{item.bags}</td>
-                                        <td>{item.scale || '—'}</td>
-                                        <td>{item.single_price}</td>
-                                        <td>{item.base_price}</td>
+                                        <td>{item.unit || '—'}</td>
+                                        <td>{item.rate}</td>
+                                        <td>{item.amount}</td>
                                         <td>{item.bagAmount}</td>
                                         <td>{item.wageAmount}</td>
                                         <td>{item.commissionAmount}</td>
@@ -1246,15 +1246,15 @@ const SaleEntry = () => {
                             </tbody>
                         </table>
                         <div className="sale-view-totals">
-                            <div><span>Total quantity</span><strong>{viewSale.bill_details?.total_quantity || 0}</strong></div>
-                            <div><span>Total bags</span><strong>{viewSale.bill_details?.bag_quantity || 0}</strong></div>
-                            <div><span>Weight</span><strong>{viewSale.bill_details?.weight || 0}</strong></div>
-                            <div><span>Subtotal</span><strong>₹{Number(viewSale.bill_details?.subtotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Bag amount</span><strong>₹{Number(viewSale.bill_details?.bagAmountTotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Wage</span><strong>₹{Number(viewSale.bill_details?.wageTotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Commission</span><strong>₹{Number(viewSale.bill_details?.commissionTotal || 0).toFixed(2)}</strong></div>
-                            <div><span>Freight</span><strong>₹{Number(viewSale.bill_details?.freight || 0).toFixed(2)}</strong></div>
-                            <div><span>Grand total</span><strong>₹{Number(viewSale.bill_details?.bill_amount || 0).toFixed(2)}</strong></div>
+                            <div><span>Total quantity</span><strong>{viewSale.billDetails?.totalQuantity || 0}</strong></div>
+                            <div><span>Total bags</span><strong>{viewSale.billDetails?.totalBags || 0}</strong></div>
+                            <div><span>Weight</span><strong>{viewSale.billDetails?.weight || 0}</strong></div>
+                            <div><span>Subtotal</span><strong>₹{Number(viewSale.billDetails?.subtotal || 0).toFixed(2)}</strong></div>
+                            <div><span>Bag amount</span><strong>₹{Number(viewSale.billDetails?.totalBagAmount || 0).toFixed(2)}</strong></div>
+                            <div><span>Wage</span><strong>₹{Number(viewSale.billDetails?.totalWage || 0).toFixed(2)}</strong></div>
+                            <div><span>Commission</span><strong>₹{Number(viewSale.billDetails?.totalCommission || 0).toFixed(2)}</strong></div>
+                            <div><span>Freight</span><strong>₹{Number(viewSale.billDetails?.freight || 0).toFixed(2)}</strong></div>
+                            <div><span>Grand total</span><strong>₹{Number(viewSale.billDetails?.grandTotal || 0).toFixed(2)}</strong></div>
                         </div>
                         <div className="sale-view-actions">
                             <button type="button" onClick={() => { handleEdit(viewSale); setViewSale(null); }}>Edit this sale</button>

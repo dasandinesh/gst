@@ -1,57 +1,18 @@
-﻿const GstSale = require('../model/salesmodule');
+const GstSale = require('../model/salesmodule');
 const CreditNote = require('../model/creditnotemodule');
 const Purchase = require('../model/purchasemodule');
 const DebitNote = require('../model/debitnotemodule');
-
-const num = (v) => Number(v) || 0;
-const round2 = (v) => Math.round((num(v)) * 100) / 100;
+const { num, round2, mergeRateTotals, finalizeRateTable, totalsOf } = require('../utils/gstAggregation');
 
 const dateFilter = (req) => {
   const filter = { businessId: req.auth.businessId };
   if (req.query.startDate || req.query.endDate) {
-    filter['bill_details.date'] = {};
-    if (req.query.startDate) filter['bill_details.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
-    if (req.query.endDate) filter['bill_details.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
+    filter['billDetails.date'] = {};
+    if (req.query.startDate) filter['billDetails.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
+    if (req.query.endDate) filter['billDetails.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
   }
   return filter;
 };
-
-// Merges each doc's `gstTotals` Map (keyed by rate) into one rate -> totals table,
-// scaled by `sign` (+1 for sales/purchases, -1 for their credit/debit notes so the
-// result nets out to the true outward/inward position for the period).
-const mergeRateTotals = (docs, sign, table) => {
-  docs.forEach((doc) => {
-    const totals = doc.gstTotals;
-    if (!totals) return;
-    const entries = totals instanceof Map ? totals.entries() : Object.entries(totals);
-    for (const [rate, t] of entries) {
-      if (!table[rate]) table[rate] = { rate: Number(rate), taxableValue: 0, cgst: 0, sgst: 0, igst: 0 };
-      table[rate].taxableValue += sign * num(t.taxableValue);
-      table[rate].cgst += sign * num(t.cgst);
-      table[rate].sgst += sign * num(t.sgst);
-      table[rate].igst += sign * num(t.igst);
-    }
-  });
-};
-
-const finalizeRateTable = (table) => Object.values(table)
-  .map((t) => ({
-    rate: t.rate,
-    taxableValue: round2(t.taxableValue),
-    cgst: round2(t.cgst),
-    sgst: round2(t.sgst),
-    igst: round2(t.igst),
-    total: round2(t.taxableValue + t.cgst + t.sgst + t.igst),
-  }))
-  .sort((a, b) => a.rate - b.rate);
-
-const totalsOf = (rows) => rows.reduce((acc, r) => ({
-  taxableValue: round2(acc.taxableValue + r.taxableValue),
-  cgst: round2(acc.cgst + r.cgst),
-  sgst: round2(acc.sgst + r.sgst),
-  igst: round2(acc.igst + r.igst),
-  total: round2(acc.total + r.total),
-}), { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
 
 // Net HSN-wise summary (per GSTR-1 table 12): outward supply lines minus whatever
 // was reversed against them by credit notes in the same period.
@@ -59,7 +20,7 @@ const mergeHsnSummary = (docsWithSign) => {
   const table = {};
   docsWithSign.forEach(([docs, sign]) => {
     docs.forEach((doc) => {
-      (doc.products || []).forEach((p) => {
+      (doc.items || []).forEach((p) => {
         const key = `${p.hsnCode || '—'}|${num(p.gstRate)}`;
         if (!table[key]) table[key] = { hsnCode: p.hsnCode || '—', gstRate: num(p.gstRate), unit: p.unit || '', quantity: 0, taxableValue: 0, cgst: 0, sgst: 0, igst: 0, total: 0 };
         table[key].quantity += sign * num(p.quantity);
@@ -67,7 +28,7 @@ const mergeHsnSummary = (docsWithSign) => {
         table[key].cgst += sign * num(p.cgstAmount);
         table[key].sgst += sign * num(p.sgstAmount);
         table[key].igst += sign * num(p.igstAmount);
-        table[key].total += sign * num(p.total);
+        table[key].total += sign * num(p.amount);
         if (!table[key].unit && p.unit) table[key].unit = p.unit;
       });
     });

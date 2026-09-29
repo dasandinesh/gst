@@ -8,6 +8,7 @@ const connectDatabase = require('./config/database');
 const cookieParser = require('cookie-parser');
 const app = express();
 const authrouter = require('./routers/authroutes');
+const adminrouter = require('./routers/adminroutes');
 const custumerrouter = require('./routers/customerrouters');
 const productrouter = require('./routers/productroutes');
 const orderrouter = require('./routers/orderroutes');
@@ -17,15 +18,21 @@ const supplierrouter = require('./routers/supplierroutes');
 const purchaserouter = require('./routers/purchaseroutes');
 const creditnoterouter = require('./routers/creditnoteroutes');
 const debitnoterouter = require('./routers/debitnoteroutes');
+const deliverychallanrouter = require('./routers/deliverychallanroutes');
+const buyerporouter = require('./routers/buyerporoutes');
 const paymentrouter = require('./routers/paymentroutes');
 const gstreportrouter = require('./routers/gstreportroutes');
 const daybookrouter = require('./routers/daybookroutes');
 const invoicesettingrouter = require('./routers/invoicesettingroutes');
+const preferencerouter = require('./routers/preferenceroutes');
 const receiptrouter = require('./routers/receiptroutes');
 const ledgerrouter = require('./routers/ledgerroutes');
 const backuprouter = require('./routers/backuproutes');
 const driverrouter = require('./routers/driverroutes');
 const vehiclerouter = require('./routers/vehicleroutes');
+const estimatecustomerrouter = require('./routers/estimatecustomerroutes');
+const estimateproductrouter = require('./routers/estimateproductroutes');
+const estimatebillrouter = require('./routers/estimatebillroutes');
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, 'config/config.env') });
@@ -66,6 +73,7 @@ app.use(async (req, res, next) => {
 });
 
 app.use('/api/auth', authrouter);
+app.use('/api/admin', adminrouter);
 app.use('/api/customers', custumerrouter);
 app.use('/api/products', productrouter);
 app.use('/api/orders', orderrouter);
@@ -75,15 +83,21 @@ app.use('/api/suppliers', supplierrouter);
 app.use('/api/purchases', purchaserouter);
 app.use('/api/credit-notes', creditnoterouter);
 app.use('/api/debit-notes', debitnoterouter);
+app.use('/api/delivery-challans', deliverychallanrouter);
+app.use('/api/buyer-pos', buyerporouter);
 app.use('/api/payments', paymentrouter);
 app.use('/api/reports/gst', gstreportrouter);
 app.use('/api/reports/day-book', daybookrouter);
 app.use('/api/invoice-settings', invoicesettingrouter);
+app.use('/api/preferences', preferencerouter);
 app.use('/api/receipts', receiptrouter);
 app.use('/api/ledger', ledgerrouter);
 app.use('/api/backup', backuprouter);
 app.use('/api/drivers', driverrouter);
 app.use('/api/vehicles', vehiclerouter);
+app.use('/api/estimate-customers', estimatecustomerrouter);
+app.use('/api/estimate-products', estimateproductrouter);
+app.use('/api/estimate-bills', estimatebillrouter);
 
 // Health check for the dashboard's three status lights: this endpoint answering at
 // all means the backend is up; its `db` field says whether Mongo is connected.

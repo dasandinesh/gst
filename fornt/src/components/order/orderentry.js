@@ -82,7 +82,7 @@ const OrderEntry = () => {
             e.preventDefault(); // Prevents accidental form submission
             nextRef.current?.focus();
             if (currentRef === singlePriceInputRef) {
-                if (!product.name || (!product.quantity && !product.bags) || !product.scale || !product.single_price) {
+                if (!product.name || (!product.quantity && !product.bags) || !product.unit || !product.rate) {
                     alert("Please fill in the product details before adding (quantity or bags is enough).");
                     return;
                 } else {
@@ -100,7 +100,7 @@ const OrderEntry = () => {
     const handleKeyDownforprice = (e, fieldName, index) => {
         if (e.key === 'Enter') {
             e.preventDefault(); // Prevent form submission on Enter
-            const nextInput = document.querySelector(`input[name="products.${index + 1}.${fieldName}"]`);
+            const nextInput = document.querySelector(`input[name="items.${index + 1}.${fieldName}"]`);
             if (nextInput) {
                 nextInput.focus();
                 nextInput.select(); // Optional: selects text for quick editing
@@ -118,21 +118,12 @@ const OrderEntry = () => {
         comment: "",
         quantity: "",
         bags: "",
-        scale: "mixters",
-        single_price: "",
-        base_price: "",
-        crossprice: "",
-        crossprice_total: "",
-        scaleno: "",
-        single_bag_amount: "",
-        bagprice: "",
+        unit: "mixters",
+        rate: "",
+        amount: "",
         bagRate: "", // per-bag purchase rate, pulled from the product master — not shown in the UI, just saved with the order.
-        single_wages_amount: "",
-        Wages: "",
-        wage: "", // per-bag wage rate, pulled from the product master — not shown in the UI, just saved with the order.
-        single_commission_amount: "",
-        commission: "", // per-bag commission rate, pulled from the product master — not shown in the UI, just saved with the order.
-        price: "",
+        wageRate: "", // per-bag wage rate, pulled from the product master — not shown in the UI, just saved with the order.
+        commissionRate: "", // per-bag commission rate, pulled from the product master — not shown in the UI, just saved with the order.
     });
 
 
@@ -150,36 +141,25 @@ const OrderEntry = () => {
     const { register, control, handleSubmit, setValue, reset, getValues } = useForm({
         defaultValues: {
             customer: { name: "" },
-            bill_details: {
-                order_sno: "",
+            billDetails: {
+                billNumber: "",
                 date: new Date().toISOString().split("T")[0],
-                bill_date: new Date().toISOString().split("T")[0],
-                total_quantity: "",
-                bag_quantity: "",
+                billDate: new Date().toISOString().split("T")[0],
+                totalQuantity: "",
+                totalBags: "",
                 weight: "",
-                base_price: "",
-                transport: "",
-                totalbagprice: "",
-                totalWages: "",
-                totalcommission: "",
                 credit: "",
-                cash: "",
-                old_balance: "",
-                new_balance: "",
                 subtotal: "",
-                bill_amount: "",
+                grandTotal: "",
                 billed: false,
-
             },
-            products: [
-                // { name: "", comment: "", quantity: "", single_price: "", scale: "", scaleno: "", single_bag_amount: "", bagprice: "", single_wages_amount: "", Wages: "", single_commission_amount: "", commission: "", price: "" }
-            ],
+            items: [],
         },
     });
     const customerNameRegistration = register("customer.name", { required: "Customer name is required." });
     const { fields, append, remove } = useFieldArray({
         control,
-        name: "products",
+        name: "items",
     });
     const handleAddProduct = () => {
         if (!productExists(product.name)) {
@@ -187,65 +167,56 @@ const OrderEntry = () => {
             return;
         }
         const quantity = Number(product.quantity);
-        const singlePrice = Number(product.single_price);
+        const singlePrice = Number(product.rate);
         const basePrice = quantity * singlePrice;
         append({
             ...product,
-            base_price: basePrice,
+            amount: basePrice,
         });
         setProduct({
             name: "",
             comment: "",
             quantity: "",
             bags: "",
-            single_price: "",
-            base_price: "",
-            scale: "mixters",
-            crossprice: "",
-            crossprice_total: "",
-            scaleno: "",
-            single_bag_amount: "",
-            bagprice: "",
+            rate: "",
+            amount: "",
+            unit: "mixters",
             bagRate: "",
-            single_wages_amount: "",
-            Wages: "",
-            wage: "",
-            single_commission_amount: "",
-            commission: "",
-            price: "",
+            wageRate: "",
+            commissionRate: "",
         });
         calculateTotals();
 
     };
 
     const calculateTotals = () => {
-        const products = getValues("products");
+        const products = getValues("items");
         const totalQuantity = products.reduce((sum, product) => sum + Number(product.quantity || 0), 0);
         const totalBagQuantity = products.reduce((sum, product) => sum + Number(product.bags || 0), 0);
-        const totalWeight = products.reduce((sum, product) => sum + (Number(product.quantity || 0) * Number(product.scale || 0)), 0);
-        setValue('bill_details.total_quantity', totalQuantity);
-        setValue('bill_details.bag_quantity', totalBagQuantity);
-        setValue('bill_details.weight', totalWeight);
+        const totalWeight = products.reduce((sum, product) => sum + (Number(product.quantity || 0) * Number(product.unit || 0)), 0);
+        setValue('billDetails.totalQuantity', totalQuantity);
+        setValue('billDetails.totalBags', totalBagQuantity);
+        setValue('billDetails.weight', totalWeight);
     };
     const up = (index) => {
         if (index > 0) {
-            const values = getValues("products");
+            const values = getValues("items");
             [values[index], values[index - 1]] = [values[index - 1], values[index]];
-            reset({ ...getValues(), products: values });
+            reset({ ...getValues(), items: values });
         }
     };
     const blankForm = () => ({
         customer: { name: "" },
-        bill_details: {
-            order_sno: "",
+        billDetails: {
+            billNumber: "",
             date: todayString(),
-            bill_date: todayString(),
-            total_quantity: "",
-            bag_quantity: "",
+            billDate: todayString(),
+            totalQuantity: "",
+            totalBags: "",
             weight: "",
             billed: false,
         },
-        products: [],
+        items: [],
     });
 
     const handleNewOrder = () => {
@@ -261,28 +232,28 @@ const OrderEntry = () => {
     // Load an existing order from the summary list back into the form for editing.
     const handleEdit = (order) => {
         setEditingId(order._id);
-        setIsSubscribed(Boolean(order.bill_details?.billed));
+        setIsSubscribed(Boolean(order.billDetails?.billed));
         setSaveStatus('');
         setCustomerWarning('');
         setProductWarning('');
         reset({
             customer: { name: order.customer?.name || "" },
-            bill_details: {
-                ...order.bill_details,
-                date: toDateInput(order.bill_details?.date),
-                bill_date: toDateInput(order.bill_details?.bill_date),
+            billDetails: {
+                ...order.billDetails,
+                date: toDateInput(order.billDetails?.date),
+                billDate: toDateInput(order.billDetails?.billDate),
             },
-            products: (order.products || []).map((item) => ({
+            items: (order.items || []).map((item) => ({
                 name: item.name || "",
                 comment: item.comment || "",
                 quantity: item.quantity ?? "",
                 bags: item.bags ?? "",
-                scale: item.scale || "",
-                single_price: item.single_price ?? "",
-                base_price: item.base_price ?? "",
+                unit: item.unit || "",
+                rate: item.rate ?? "",
+                amount: item.amount ?? "",
                 bagRate: item.bagRate ?? "",
-                wage: item.wage ?? "",
-                commission: item.commission ?? "",
+                wageRate: item.wageRate ?? "",
+                commissionRate: item.commissionRate ?? "",
             })),
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -314,7 +285,7 @@ const OrderEntry = () => {
             const rowIndex = orderSummary.indexOf(match);
             setSelectedRow(rowIndex);
             handleEdit(match);
-            setSaveStatus(`Existing order ${match.bill_details?.order_sno || ''} loaded for editing.`);
+            setSaveStatus(`Existing order ${match.billDetails?.billNumber || ''} loaded for editing.`);
         }
     };
 
@@ -356,7 +327,7 @@ const OrderEntry = () => {
         const grouped = new Map();
         orderSummary.forEach((order) => {
             const name = order.customer?.name || 'Unknown';
-            const mixerProducts = (order.products || []).filter((item) => item.scale === 'mixters');
+            const mixerProducts = (order.items || []).filter((item) => item.unit === 'mixters');
             if (!mixerProducts.length) return;
             if (!grouped.has(name)) grouped.set(name, []);
             grouped.get(name).push(...mixerProducts);
@@ -369,7 +340,7 @@ const OrderEntry = () => {
 
         const rows = Array.from(grouped.entries()).map(([customer, products]) => {
             const productText = products
-                .map((item) => `${item.name} ${item.quantity}${item.scale || ''}`)
+                .map((item) => `${item.name} ${item.quantity}${item.unit || ''}`)
                 .join(', ');
             return `<div class="customer-block"><span class="customer-name">${customer}</span> — ${productText}</div>`;
         }).join('');
@@ -408,20 +379,20 @@ const OrderEntry = () => {
             setCustomerWarning('This customer is not in the list. Please add the customer first.');
             return;
         }
-        const unknownProduct = (data.products || []).find((item) => item.name && !productExists(item.name));
+        const unknownProduct = (data.items || []).find((item) => item.name && !productExists(item.name));
         if (unknownProduct) {
             setSaveStatus(`Product "${unknownProduct.name}" is not in the list. Please add it first.`);
             return;
         }
         const payload = {
             ...data,
-            bill_details: { ...data.bill_details, billed: isSubscribed },
+            billDetails: { ...data.billDetails, billed: isSubscribed },
         };
         try {
             const response = editingId
                 ? await axios.put(`/api/orders/${editingId}`, payload)
                 : await axios.post('/api/orders', payload);
-            const sno = response.data.bill_details?.order_sno || '';
+            const sno = response.data.billDetails?.billNumber || '';
             setSaveStatus(`Order ${sno} ${editingId ? 'updated' : 'saved'} successfully.`);
             setEditingId(null);
             setIsSubscribed(false);
@@ -470,11 +441,11 @@ const OrderEntry = () => {
                         <div></div>
 
                         <div><label>Bill Date:</label><br></br>
-                            <input type="date" {...register("bill_details.date")} /></div>
+                            <input type="date" {...register("billDetails.date")} /></div>
 
 
                         <div> <label>Bill Number:</label>
-                            <input type="text" placeholder="Auto" {...register("bill_details.order_sno")} /></div>
+                            <input type="text" placeholder="Auto" {...register("billDetails.billNumber")} /></div>
 
 
                     </div>
@@ -498,17 +469,14 @@ const OrderEntry = () => {
                                         setProduct({
                                             ...product,
                                             name: val,
-                                            single_price: selectedProduct ? selectedProduct.Price : "",
-                                            single_bag_amount: selectedProduct ? selectedProduct.single_bag_amount : "",
-                                            single_wages_amount: selectedProduct ? selectedProduct.single_wages_amount : "",
-                                            single_commission_amount: selectedProduct ? selectedProduct.single_commission_amount : "",
+                                            rate: selectedProduct ? selectedProduct.Price : "",
                                             // Bag rate, wage and commission are looked up from the product master and
                                             // carried on the line silently — no inputs for them here; the backend
                                             // turns them into bagAmount/wageAmount/commissionAmount (rate × bags)
-                                            // and rolls those into the order's bill_amount.
+                                            // and rolls those into the order's grandTotal.
                                             bagRate: selectedProduct ? (selectedProduct.pags ?? "") : "",
-                                            wage: selectedProduct ? (selectedProduct.Wages ?? "") : "",
-                                            commission: selectedProduct ? (selectedProduct.commission ?? "") : "",
+                                            wageRate: selectedProduct ? (selectedProduct.Wages ?? "") : "",
+                                            commissionRate: selectedProduct ? (selectedProduct.commission ?? "") : "",
 
                                         });
                                     }}
@@ -559,7 +527,7 @@ const OrderEntry = () => {
                                         setProduct({
                                             ...product,
                                             bags,
-                                            scale: bags && selectedProduct?.Unit ? selectedProduct.Unit : product.scale,
+                                            unit: bags && selectedProduct?.Unit ? selectedProduct.Unit : product.unit,
                                         });
                                     }}
                                     placeholder="Bags"
@@ -572,10 +540,10 @@ const OrderEntry = () => {
                                 <br />
                                 <input
                                     type="text"
-                                    name="scale"
-                                    value={product.scale}
+                                    name="unit"
+                                    value={product.unit}
                                     className="small-input"
-                                    onChange={(e) => setProduct({ ...product, scale: e.target.value })}
+                                    onChange={(e) => setProduct({ ...product, unit: e.target.value })}
                                     placeholder="Scale"
                                     ref={scaleInputRef}
                                     onKeyDown={(e) => handleKeyDown(e, scaleInputRef, singlePriceInputRef)}
@@ -595,10 +563,10 @@ const OrderEntry = () => {
                                 <br />
                                 <input
                                     type="number"
-                                    name="single_price"
-                                    value={product.single_price}
+                                    name="rate"
+                                    value={product.rate}
                                     className="small-input"
-                                    onChange={(e) => setProduct({ ...product, single_price: e.target.value })}
+                                    onChange={(e) => setProduct({ ...product, rate: e.target.value })}
                                     placeholder="Price"
                                     ref={singlePriceInputRef}
                                     onKeyDown={(e) => handleKeyDown(e, singlePriceInputRef, productNameInputRef)}
@@ -635,7 +603,7 @@ const OrderEntry = () => {
                                         <td className="product-name-cell">
                                             <input
                                                 className="product-name-cell" type="text"
-                                                {...register(`products.${index}.name`)}
+                                                {...register(`items.${index}.name`)}
                                                 list='product-list'
                                                 onKeyDown={(e) => handleKeyDownforprice(e, "name", index)}
                                             />
@@ -649,7 +617,7 @@ const OrderEntry = () => {
                                             <input
                                                 className="product-quantity-cell"
                                                 type="number"
-                                                {...register(`products.${index}.quantity`)}
+                                                {...register(`items.${index}.quantity`)}
                                                 onKeyDown={(e) => handleKeyDownforprice(e,"quantity", index)}
                                             />
                                         </td>
@@ -657,7 +625,7 @@ const OrderEntry = () => {
                                             <input
                                                 className="product-quantity-cell"
                                                 type="number"
-                                                {...register(`products.${index}.bags`)}
+                                                {...register(`items.${index}.bags`)}
                                                 onKeyDown={(e) => handleKeyDownforprice(e,"bags", index)}
                                             />
                                         </td>
@@ -668,8 +636,8 @@ const OrderEntry = () => {
 
                                                 type="number"
                                                 step="0.01"
-                                                {...register(`products.${index}.single_price`)}
-                                                onKeyDown={(e) => handleKeyDownforprice(e,"single_price", index)}
+                                                {...register(`items.${index}.rate`)}
+                                                onKeyDown={(e) => handleKeyDownforprice(e,"rate", index)}
 
                                             />
                                         </td>
@@ -678,8 +646,8 @@ const OrderEntry = () => {
                                                 className="product-quantity-cell"
                                                 type="number"
                                                 step="0.01"
-                                                {...register(`products.${index}.base_price`)}
-                                                onKeyDown={(e) => handleKeyDownforprice(e,"base_price", index)}
+                                                {...register(`items.${index}.amount`)}
+                                                onKeyDown={(e) => handleKeyDownforprice(e,"amount", index)}
 
                                             />
                                         </td>
@@ -697,15 +665,15 @@ const OrderEntry = () => {
                     <div className="bill-total-summary">
                         <div>
                             <label>Total Quantity:</label>
-                            <input type="number" {...register("bill_details.total_quantity")} />
+                            <input type="number" {...register("billDetails.totalQuantity")} />
                         </div>
                         <div>
                             <label>Total Bag Quantity:</label>
-                            <input type="number" {...register("bill_details.bag_quantity")} />
+                            <input type="number" {...register("billDetails.totalBags")} />
                         </div>
                         <div>
                             <label>Total Weight:</label>
-                            <input type="number" {...register("bill_details.weight")} />
+                            <input type="number" {...register("billDetails.weight")} />
                         </div>
 
                         <div>
@@ -727,7 +695,7 @@ const OrderEntry = () => {
                         <div><button type="submit">save</button></div>
                         <div><button type="button">delete</button></div>
                     </div>
-                    {editingId && <p role="status">Editing order {getValues('bill_details.order_sno') || editingId}. Press “new” to cancel.</p>}
+                    {editingId && <p role="status">Editing order {getValues('billDetails.billNumber') || editingId}. Press “new” to cancel.</p>}
                     {saveStatus && <p role="alert">{saveStatus}</p>}
                 </form>
             </div>
@@ -786,9 +754,9 @@ const OrderEntry = () => {
                                             onChange={() => toggleSelectRow(order._id)}
                                         />
                                     </td>
-                                    <td>{order.bill_details?.order_sno || '—'}</td>
+                                    <td>{order.billDetails?.billNumber || '—'}</td>
                                     <td>{order.customer?.name || '—'}</td>
-                                    <td>{order.bill_details?.billed ? 'Billed' : 'Pending'}</td>
+                                    <td>{order.billDetails?.billed ? 'Billed' : 'Pending'}</td>
                                     <td><button type="button" onClick={(e) => { e.stopPropagation(); setViewOrder(order); }}>view</button></td>
                                     <td><button type="button" onClick={(e) => { e.stopPropagation(); setSelectedRow(index); handleEdit(order); }}>edit</button></td>
                                 </tr>
@@ -813,33 +781,33 @@ const OrderEntry = () => {
                             <button type="button" onClick={() => setViewOrder(null)}>✕</button>
                         </div>
                         <div className="order-view-meta">
-                            <div><span>Bill No.</span><strong>{viewOrder.bill_details?.order_sno || '—'}</strong></div>
+                            <div><span>Bill No.</span><strong>{viewOrder.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewOrder.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewOrder.bill_details?.date)}</strong></div>
-                            <div><span>Status</span><strong>{viewOrder.bill_details?.billed ? 'Billed' : 'Pending'}</strong></div>
+                            <div><span>Date</span><strong>{toDateInput(viewOrder.billDetails?.date)}</strong></div>
+                            <div><span>Status</span><strong>{viewOrder.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <table className="order-view-table">
                             <thead>
                                 <tr><th>Product</th><th>Qty</th><th>Bags</th><th>Scale</th><th>Single price</th><th>Amount</th></tr>
                             </thead>
                             <tbody>
-                                {(viewOrder.products || []).map((item, index) => (
+                                {(viewOrder.items || []).map((item, index) => (
                                     <tr key={index}>
                                         <td>{item.name}</td>
                                         <td>{item.quantity}</td>
                                         <td>{item.bags}</td>
-                                        <td>{item.scale || '—'}</td>
-                                        <td>{item.single_price}</td>
-                                        <td>{item.base_price}</td>
+                                        <td>{item.unit || '—'}</td>
+                                        <td>{item.rate}</td>
+                                        <td>{item.amount}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                         <div className="order-view-totals">
-                            <div><span>Total quantity</span><strong>{viewOrder.bill_details?.total_quantity || 0}</strong></div>
-                            <div><span>Total bags</span><strong>{viewOrder.bill_details?.bag_quantity || 0}</strong></div>
-                            <div><span>Weight</span><strong>{viewOrder.bill_details?.weight || 0}</strong></div>
-                            <div><span>Bill amount</span><strong>₹{Number(viewOrder.bill_details?.bill_amount || 0).toFixed(2)}</strong></div>
+                            <div><span>Total quantity</span><strong>{viewOrder.billDetails?.totalQuantity || 0}</strong></div>
+                            <div><span>Total bags</span><strong>{viewOrder.billDetails?.totalBags || 0}</strong></div>
+                            <div><span>Weight</span><strong>{viewOrder.billDetails?.weight || 0}</strong></div>
+                            <div><span>Bill amount</span><strong>₹{Number(viewOrder.billDetails?.grandTotal || 0).toFixed(2)}</strong></div>
                         </div>
                         <div className="order-view-actions">
                             <button type="button" onClick={() => { handleEdit(viewOrder); setViewOrder(null); }}>Edit this order</button>

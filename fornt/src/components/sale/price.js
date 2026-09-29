@@ -39,14 +39,14 @@ const ByBillSection = () => {
             const term = productName.toLowerCase();
             const built = sales
                 .map((sale) => {
-                    const item = (sale.products || []).find((p) => (p.name || '').toLowerCase() === term);
+                    const item = (sale.items || []).find((p) => (p.name || '').toLowerCase() === term);
                     if (!item) return null;
                     return {
                         saleId: sale._id,
                         itemId: item._id,
-                        billNo: sale.bill_details?.order_sno || '—',
+                        billNo: sale.billDetails?.billNumber || '—',
                         customerName: sale.customer?.name || '—',
-                        price: item.single_price ?? '',
+                        price: item.rate ?? '',
                         quantity: item.quantity ?? '',
                         sale,
                     };
@@ -73,15 +73,15 @@ const ByBillSection = () => {
     const saveRow = async (index) => {
         const row = rows[index];
         if (!row) return;
-        const updatedProducts = (row.sale.products || []).map((p) => (
+        const updatedProducts = (row.sale.items || []).map((p) => (
             p._id === row.itemId
-                ? { ...p, single_price: Number(row.price) || 0, quantity: Number(row.quantity) || 0 }
+                ? { ...p, rate: Number(row.price) || 0, quantity: Number(row.quantity) || 0 }
                 : p
         ));
         const payload = {
             customer: row.sale.customer,
-            bill_details: row.sale.bill_details,
-            products: updatedProducts,
+            billDetails: row.sale.billDetails,
+            items: updatedProducts,
         };
         try {
             const updated = await fetchJson(`/api/sales/${row.saleId}`, {
@@ -89,9 +89,9 @@ const ByBillSection = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            const item = (updated.products || []).find((p) => p._id === row.itemId) || {};
+            const item = (updated.items || []).find((p) => p._id === row.itemId) || {};
             setRows((current) => current.map((r, i) => (
-                i === index ? { ...r, sale: updated, price: item.single_price ?? r.price, quantity: item.quantity ?? r.quantity } : r
+                i === index ? { ...r, sale: updated, price: item.rate ?? r.price, quantity: item.quantity ?? r.quantity } : r
             )));
             setStatus(`Saved — bill ${row.billNo} (${row.customerName}) updated.`);
         } catch (error) {
@@ -190,11 +190,11 @@ const BulkPriceSection = () => {
             const byName = new Map();
             // Sales come back newest-first, so the first line seen for a product is its most recent price.
             sales.forEach((sale) => {
-                (sale.products || []).forEach((item) => {
+                (sale.items || []).forEach((item) => {
                     const key = (item.name || '').trim().toLowerCase();
                     if (!key) return;
                     if (!byName.has(key)) {
-                        byName.set(key, { name: item.name, price: item.single_price ?? '', sales: [] });
+                        byName.set(key, { name: item.name, price: item.rate ?? '', sales: [] });
                     }
                     byName.get(key).sales.push(sale);
                 });
@@ -224,13 +224,13 @@ const BulkPriceSection = () => {
         const term = row.name.trim().toLowerCase();
         try {
             const updatedSales = await Promise.all(row.sales.map((sale) => {
-                const updatedProducts = (sale.products || []).map((p) => (
-                    (p.name || '').trim().toLowerCase() === term ? { ...p, single_price: priceNum } : p
+                const updatedProducts = (sale.items || []).map((p) => (
+                    (p.name || '').trim().toLowerCase() === term ? { ...p, rate: priceNum } : p
                 ));
                 return fetchJson(`/api/sales/${sale._id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer: sale.customer, bill_details: sale.bill_details, products: updatedProducts }),
+                    body: JSON.stringify({ customer: sale.customer, billDetails: sale.billDetails, items: updatedProducts }),
                 });
             }));
             setProductRows((current) => current.map((r, i) => (

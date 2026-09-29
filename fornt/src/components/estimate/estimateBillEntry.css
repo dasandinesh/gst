@@ -1,0 +1,96 @@
+/* Estimate billing page — scoped overrides/additions on top of ../sale/gstbillentry.css.
+   Scoped under .estimate-bill-page so these never leak onto the real GST bill
+   entry page, which reuses the same shared classes (.gst-line-entry, .gst-text-input, …). */
+
+/* The base field look (border/shadow/hover/focus) now lives in
+   ../sale/gstbillentry.css under .gst-bill-page, shared by this page and the
+   real GST bill entry page. Only estimate-specific sizing/layout stays here. */
+
+/* The estimate header row only has 3 fields (Customer Name, Estimate No, Estimate
+   Date) instead of the GST bill's 6, so give No/Date their own wider, roomier
+   columns instead of inheriting the GST bill's cramped 80px "narrow" slots. */
+.estimate-bill-page .gst-bill-header-row {
+  grid-template-columns: minmax(280px, 1fr) 190px 190px;
+}
+.estimate-bill-page .gst-narrow {
+  width: auto;
+}
+.estimate-bill-page .gst-compact-input {
+  max-width: none;
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+@media (max-width: 700px) {
+  .estimate-bill-page .gst-bill-header-row { grid-template-columns: 1fr; }
+}
+
+/* The estimate line-entry row has 7 fields (Barcode, Product, Qty, Unit, Price, Add,
+   Save) instead of the GST bill's 8, and the product name should be the widest
+   field — not the barcode. */
+.estimate-bill-page .gst-line-entry {
+  grid-template-columns: minmax(150px, 1fr) minmax(240px, 2.4fr) minmax(80px, 0.8fr) minmax(80px, 0.8fr) minmax(100px, 0.9fr) minmax(100px, 0.9fr) minmax(130px, 1fr);
+}
+@media (max-width: 900px) {
+  .estimate-bill-page .gst-line-entry { grid-template-columns: 1fr 1fr; }
+}
+
+/* Totals-side box (Cash received, Credit, Balance due, Remark) is now a shared
+   2-column layout in ../sale/gstbillentry.css under .gst-totals-side, used by
+   both this page and the real GST bill entry page. */
+
+/* Quick-save button next to "Add" — distinct from the plain "Add" button so it
+   reads as the bigger, more deliberate action (it saves/updates the whole bill). */
+.estimate-quick-save-button {
+  background: #185c40;
+  border-color: #185c40;
+  font-weight: 700;
+}
+.estimate-quick-save-button:hover { background: #12432f; border-color: #12432f; }
+
+/* Product name field: noticeably wider input than the other line fields, so a
+   full product name is readable while typing/selecting from the datalist. */
+.estimate-product-input {
+  min-width: 220px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Barcode field: styled to look like a scan target — barcode icon, monospace
+   digits, teal accent border, glow on focus (and an extra pulse right after a
+   successful scan) so it's obvious this box drives the whole line-entry flow. */
+.estimate-barcode-field { position: relative; }
+/* input.estimate-barcode-input (not just .estimate-barcode-input) so this matches
+   the specificity of the generic input rules above and, coming later in the file,
+   wins the cascade instead of being flattened by them. */
+.estimate-bill-page input.estimate-barcode-input {
+  padding-left: 34px !important;
+  font-family: 'Courier New', Consolas, monospace;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: #12352c;
+  background-color: #f5faf8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='%232c7159' stroke-width='2' stroke-linecap='square'%3E%3Cline x1='3' y1='4' x2='3' y2='20'/%3E%3Cline x1='7' y1='4' x2='7' y2='20'/%3E%3Cline x1='10' y1='4' x2='10' y2='20'/%3E%3Cline x1='14' y1='4' x2='14' y2='20'/%3E%3Cline x1='16' y1='4' x2='16' y2='20'/%3E%3Cline x1='20' y1='4' x2='20' y2='20'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 8px center;
+  border: 1.5px dashed #7fb8a0;
+  border-radius: 7px;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.estimate-bill-page input.estimate-barcode-input::placeholder { color: #7c9c92; font-family: inherit; letter-spacing: normal; }
+.estimate-bill-page input.estimate-barcode-input:hover {
+  border-color: #5fa588;
+}
+.estimate-bill-page input.estimate-barcode-input:focus {
+  border-style: solid;
+  border-color: #237553;
+  background-color: #fff;
+  outline: none;
+  box-shadow: none;
+}
+/* A found/filled barcode (line has a matching product name) gets a solid
+   confirmed look instead of the dashed "waiting to scan" border. */
+.estimate-bill-page input.estimate-barcode-input:not(:placeholder-shown) {
+  border-style: solid;
+  border-color: #2c7159;
+}

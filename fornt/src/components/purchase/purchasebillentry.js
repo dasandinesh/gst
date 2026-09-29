@@ -21,9 +21,9 @@ const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 // The server recalculates authoritatively on save, so this only drives the on-screen totals.
 const computeLine = (item, taxType) => {
   const quantity = Number(item.quantity) || 0;
-  const price = Number(item.price) || 0;
+  const rate = Number(item.rate) || 0;
   const gstRate = Number(item.gstRate) || 0;
-  const gross = quantity * price;
+  const gross = quantity * rate;
   const isInclusive = item.gstMode === 'inclusive';
   const taxableValue = isInclusive ? gross / (1 + gstRate / 100) : gross;
   const gstAmount = isInclusive ? gross - taxableValue : (taxableValue * gstRate) / 100;
@@ -31,7 +31,7 @@ const computeLine = (item, taxType) => {
   return {
     ...item,
     quantity,
-    price,
+    rate,
     gstRate,
     taxableValue: round2(taxableValue),
     cgstRate: interState ? 0 : round2(gstRate / 2),
@@ -40,13 +40,13 @@ const computeLine = (item, taxType) => {
     cgstAmount: interState ? 0 : round2(gstAmount / 2),
     sgstAmount: interState ? 0 : round2(gstAmount / 2),
     igstAmount: interState ? round2(gstAmount) : 0,
-    total: round2(taxableValue + gstAmount),
+    amount: round2(taxableValue + gstAmount),
   };
 };
 
-const emptyLine = { name: '', hsnCode: '', quantity: '', unit: '', price: '', gstMode: 'exclusive', gstRate: '' };
+const emptyLine = { name: '', hsnCode: '', quantity: '', unit: '', rate: '', gstMode: 'exclusive', gstRate: '' };
 const emptySupplier = { name: '', supplierId: '', gstin: '', state: '' };
-const emptyBillMeta = { billNumber: '', supplierBillNumber: '', date: todayString(), taxType: 'CGST_SGST', placeOfSupply: '', remark: '', cash: 0, credit: 0 };
+const emptyBillMeta = { billNumber: '', supplierInvoiceNumber: '', date: todayString(), taxType: 'CGST_SGST', placeOfSupply: '', notes: '', cash: 0, credit: 0 };
 
 const PurchaseBillEntry = () => {
   const supplierNameRef = useRef(null);
@@ -120,17 +120,17 @@ const PurchaseBillEntry = () => {
 
   const computedLines = useMemo(() => lines.map((line) => computeLine(line, billMeta.taxType)), [lines, billMeta.taxType]);
   const totals = useMemo(() => {
-    const subtotal = round2(computedLines.reduce((sum, l) => sum + l.taxableValue, 0));
+    const totalTaxableValue = round2(computedLines.reduce((sum, l) => sum + l.taxableValue, 0));
     const totalCgst = round2(computedLines.reduce((sum, l) => sum + l.cgstAmount, 0));
     const totalSgst = round2(computedLines.reduce((sum, l) => sum + l.sgstAmount, 0));
     const totalIgst = round2(computedLines.reduce((sum, l) => sum + l.igstAmount, 0));
     const totalGst = round2(totalCgst + totalSgst + totalIgst);
-    const rawTotal = subtotal + totalGst;
-    const billAmount = Math.round(rawTotal);
-    const roundOff = round2(billAmount - rawTotal);
-    return { subtotal, totalCgst, totalSgst, totalIgst, totalGst, roundOff, billAmount };
+    const rawTotal = totalTaxableValue + totalGst;
+    const grandTotal = Math.round(rawTotal);
+    const roundOff = round2(grandTotal - rawTotal);
+    return { totalTaxableValue, totalCgst, totalSgst, totalIgst, totalGst, roundOff, grandTotal };
   }, [computedLines]);
-  const balanceDue = round2(totals.billAmount - (Number(billMeta.cash) || 0) - (Number(billMeta.credit) || 0));
+  const balanceDue = round2(totals.grandTotal - (Number(billMeta.cash) || 0) - (Number(billMeta.credit) || 0));
 
   const handleSupplierNameChange = (value) => {
     setSupplier((s) => ({ ...s, name: value }));
@@ -155,7 +155,7 @@ const PurchaseBillEntry = () => {
         hsnCode: match.hsnCode || '',
         quantity: currentLine.quantity,
         unit: match.Scale || '',
-        price: match.Price ?? '',
+        rate: match.Price ?? '',
         gstMode: match.gstMode || 'exclusive',
         gstRate: match.gstpre ?? '',
       });
@@ -198,17 +198,17 @@ const PurchaseBillEntry = () => {
       state: bill.supplier?.state || '',
     });
     setBillMeta({
-      billNumber: bill.bill_details?.billNumber || '',
-      supplierBillNumber: bill.bill_details?.supplierBillNumber || '',
-      date: toDateInput(bill.bill_details?.date),
-      taxType: bill.bill_details?.taxType || 'CGST_SGST',
-      placeOfSupply: bill.bill_details?.placeOfSupply || '',
-      remark: bill.bill_details?.remark || '',
-      cash: bill.bill_details?.cash || 0,
-      credit: bill.bill_details?.credit || 0,
+      billNumber: bill.billDetails?.billNumber || '',
+      supplierInvoiceNumber: bill.billDetails?.supplierInvoiceNumber || '',
+      date: toDateInput(bill.billDetails?.date),
+      taxType: bill.billDetails?.taxType || 'CGST_SGST',
+      placeOfSupply: bill.billDetails?.placeOfSupply || '',
+      notes: bill.billDetails?.notes || '',
+      cash: bill.billDetails?.cash || 0,
+      credit: bill.billDetails?.credit || 0,
     });
-    setLines((bill.products || []).map((p) => ({
-      name: p.name || '', hsnCode: p.hsnCode || '', quantity: p.quantity ?? '', unit: p.unit || '', price: p.price ?? '', gstMode: p.gstMode || 'exclusive', gstRate: p.gstRate ?? '',
+    setLines((bill.items || []).map((p) => ({
+      name: p.name || '', hsnCode: p.hsnCode || '', quantity: p.quantity ?? '', unit: p.unit || '', rate: p.rate ?? '', gstMode: p.gstMode || 'exclusive', gstRate: p.gstRate ?? '',
     })));
     setSaveStatus({ type: '', text: '' });
     setSupplierWarning('');
@@ -229,14 +229,14 @@ const PurchaseBillEntry = () => {
     }
     const payload = {
       supplier: { name: supplier.name, supplierId: supplier.supplierId || undefined, gstin: supplier.gstin, state: supplier.state },
-      products: lines,
-      bill_details: { ...billMeta },
+      items: lines,
+      billDetails: { ...billMeta },
     };
     try {
       const saved = editingId
         ? await fetchJson(`/api/purchases/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         : await fetchJson('/api/purchases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      setSaveStatus({ type: 'success', text: `Purchase bill ${saved.bill_details?.billNumber || ''} ${editingId ? 'updated' : 'saved'} successfully.` });
+      setSaveStatus({ type: 'success', text: `Purchase bill ${saved.billDetails?.billNumber || ''} ${editingId ? 'updated' : 'saved'} successfully.` });
       resetForm();
       loadBills();
     } catch (error) {
@@ -245,7 +245,7 @@ const PurchaseBillEntry = () => {
   };
 
   const deleteBill = async (bill) => {
-    if (!window.confirm(`Delete bill ${bill.bill_details?.billNumber}? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete bill ${bill.billDetails?.billNumber}? This cannot be undone.`)) return;
     try {
       await fetchJson(`/api/purchases/${bill._id}`, { method: 'DELETE' });
       if (editingId === bill._id) resetForm();
@@ -281,7 +281,7 @@ const PurchaseBillEntry = () => {
 
               <div className="gst-input-field textbox-middle"><label>GSTIN:</label><br /><input type="text" className="gst-text-input gst-compact-input" value={supplier.gstin} onChange={(e) => setSupplier((s) => ({ ...s, gstin: e.target.value }))} /></div>
               <div className="gst-input-field gst-narrow"><label>Bill No:</label><br /><input type="text" className="gst-text-input gst-compact-input" placeholder="Auto" value={billMeta.billNumber} onChange={(e) => setBillMeta((m) => ({ ...m, billNumber: e.target.value }))} disabled={Boolean(editingId)} /></div>
-              <div className="gst-input-field gst-narrow"><label>Supplier Bill No:</label><br /><input type="text" className="gst-text-input gst-compact-input" value={billMeta.supplierBillNumber} onChange={(e) => setBillMeta((m) => ({ ...m, supplierBillNumber: e.target.value }))} /></div>
+              <div className="gst-input-field gst-narrow"><label>Supplier Bill No:</label><br /><input type="text" className="gst-text-input gst-compact-input" value={billMeta.supplierInvoiceNumber} onChange={(e) => setBillMeta((m) => ({ ...m, supplierInvoiceNumber: e.target.value }))} /></div>
               <div className="gst-input-field gst-narrow"><label>Bill Date:</label><br /><input type="date" className="gst-text-input gst-compact-input" value={billMeta.date} onChange={(e) => setBillMeta((m) => ({ ...m, date: e.target.value }))} /></div>
               <div className="gst-input-field">
                 <label>Tax Type:</label><br />
@@ -324,8 +324,8 @@ const PurchaseBillEntry = () => {
               </div>
               <div className="gst-input-field">
                 <label>Price</label><br />
-                <input type="number" min="0" step="0.01" className="gst-small-input" ref={priceRef} value={currentLine.price}
-                  onChange={(e) => setCurrentLine((l) => ({ ...l, price: e.target.value }))}
+                <input type="number" min="0" step="0.01" className="gst-small-input" ref={priceRef} value={currentLine.rate}
+                  onChange={(e) => setCurrentLine((l) => ({ ...l, rate: e.target.value }))}
                   onKeyDown={(e) => focusNextOnEnter(e, gstModeRef)} />
               </div>
               <div className="gst-input-field">
@@ -360,8 +360,8 @@ const PurchaseBillEntry = () => {
                     <tr><td colSpan="11" className="gst-no-entries">No lines added yet.</td></tr>
                   ) : computedLines.map((l, index) => (
                     <tr key={index}>
-                      <td>{l.name}</td><td>{l.hsnCode || '—'}</td><td>{l.quantity} {l.unit}</td><td>{money(l.price)}</td><td>{l.gstRate}%</td>
-                      <td>{money(l.taxableValue)}</td><td>{money(l.cgstAmount)}</td><td>{money(l.sgstAmount)}</td><td>{money(l.igstAmount)}</td><td>{money(l.total)}</td>
+                      <td>{l.name}</td><td>{l.hsnCode || '—'}</td><td>{l.quantity} {l.unit}</td><td>{money(l.rate)}</td><td>{l.gstRate}%</td>
+                      <td>{money(l.taxableValue)}</td><td>{money(l.cgstAmount)}</td><td>{money(l.sgstAmount)}</td><td>{money(l.igstAmount)}</td><td>{money(l.amount)}</td>
                       <td><button type="button" className="gst-remove-line-button" title="Remove" aria-label="Remove" onClick={() => removeLine(index)}>🗑</button></td>
                     </tr>
                   ))}
@@ -379,12 +379,12 @@ const PurchaseBillEntry = () => {
                 </thead>
                 <tbody>
                   <tr>
-                    <td>{money(totals.subtotal)}</td>
+                    <td>{money(totals.totalTaxableValue)}</td>
                     <td>{money(totals.totalCgst)}</td>
                     <td>{money(totals.totalSgst)}</td>
                     <td>{money(totals.totalIgst)}</td>
                     <td>{money(totals.roundOff)}</td>
-                    <td className="gst-grand-total-cell">{money(totals.billAmount)}</td>
+                    <td className="gst-grand-total-cell">{money(totals.grandTotal)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -395,7 +395,7 @@ const PurchaseBillEntry = () => {
                   <span>{balanceDue > 0 ? 'Balance payable' : balanceDue < 0 ? 'Excess paid' : 'Balance payable'}</span>
                   <strong>{money(Math.abs(balanceDue))}</strong>
                 </div>
-                <div className="gst-input-field gst-bill-remark-row"><label>Remark:</label><input type="text" className="gst-text-input" value={billMeta.remark} onChange={(e) => setBillMeta((m) => ({ ...m, remark: e.target.value }))} /></div>
+                <div className="gst-input-field gst-bill-remark-row"><label>Remark:</label><input type="text" className="gst-text-input" value={billMeta.notes} onChange={(e) => setBillMeta((m) => ({ ...m, notes: e.target.value }))} /></div>
               </div>
             </div>
           </fieldset>
@@ -423,9 +423,9 @@ const PurchaseBillEntry = () => {
             <tbody>
               {bills.length === 0 ? <tr><td colSpan="4" className="gst-table-state">{billsStatus || 'No purchase bills found.'}</td></tr> : bills.map((bill) => (
                 <tr key={bill._id}>
-                  <td className="gst-row-name">{bill.bill_details?.billNumber}</td>
+                  <td className="gst-row-name">{bill.billDetails?.billNumber}</td>
                   <td>{bill.supplier?.name}</td>
-                  <td>{money(bill.bill_details?.billAmount)}</td>
+                  <td>{money(bill.billDetails?.grandTotal)}</td>
                   <td className="gst-row-actions">
                     <button type="button" className="gst-view-button" onClick={() => setViewBill(bill)}>View</button>
                   </td>
@@ -441,33 +441,33 @@ const PurchaseBillEntry = () => {
         <div className="gst-view-overlay" onClick={() => setViewBill(null)}>
           <div className="gst-view-modal" onClick={(e) => e.stopPropagation()}>
             <div className="gst-view-header">
-              <h3>Purchase bill {viewBill.bill_details?.billNumber}</h3>
+              <h3>Purchase bill {viewBill.billDetails?.billNumber}</h3>
               <button type="button" onClick={() => setViewBill(null)}>✕</button>
             </div>
             <div className="gst-view-meta">
               <div><span>Supplier</span><strong>{viewBill.supplier?.name}</strong></div>
-              <div><span>Date</span><strong>{toDateInput(viewBill.bill_details?.date)}</strong></div>
-              <div><span>Tax type</span><strong>{viewBill.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
-              <div><span>Place of supply</span><strong>{viewBill.bill_details?.placeOfSupply || '—'}</strong></div>
-              {viewBill.bill_details?.supplierBillNumber && <div><span>Supplier bill no.</span><strong>{viewBill.bill_details.supplierBillNumber}</strong></div>}
+              <div><span>Date</span><strong>{toDateInput(viewBill.billDetails?.date)}</strong></div>
+              <div><span>Tax type</span><strong>{viewBill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
+              <div><span>Place of supply</span><strong>{viewBill.billDetails?.placeOfSupply || '—'}</strong></div>
+              {viewBill.billDetails?.supplierInvoiceNumber && <div><span>Supplier bill no.</span><strong>{viewBill.billDetails.supplierInvoiceNumber}</strong></div>}
             </div>
             <table className="gst-view-table">
               <thead><tr><th>Product</th><th>HSN</th><th>Qty</th><th>Price</th><th>GST%</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th></tr></thead>
               <tbody>
-                {(viewBill.products || []).map((p, index) => (
-                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.price)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.total)}</td></tr>
+                {(viewBill.items || []).map((p, index) => (
+                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.rate)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.amount)}</td></tr>
                 ))}
               </tbody>
             </table>
             <div className="gst-view-totals">
-              <div><span>Subtotal</span><strong>{money(viewBill.bill_details?.subtotal)}</strong></div>
-              <div><span>Total CGST</span><strong>{money(viewBill.bill_details?.totalCgst)}</strong></div>
-              <div><span>Total SGST</span><strong>{money(viewBill.bill_details?.totalSgst)}</strong></div>
-              <div><span>Total IGST</span><strong>{money(viewBill.bill_details?.totalIgst)}</strong></div>
-              <div><span>Round off</span><strong>{money(viewBill.bill_details?.roundOff)}</strong></div>
-              <div><span>Grand total</span><strong>{money(viewBill.bill_details?.billAmount)}</strong></div>
-              <div><span>Cash paid</span><strong>{money(viewBill.bill_details?.cash)}</strong></div>
-              <div><span>Credit</span><strong>{money(viewBill.bill_details?.credit)}</strong></div>
+              <div><span>Subtotal</span><strong>{money(viewBill.billDetails?.totalTaxableValue)}</strong></div>
+              <div><span>Total CGST</span><strong>{money(viewBill.billDetails?.totalCgst)}</strong></div>
+              <div><span>Total SGST</span><strong>{money(viewBill.billDetails?.totalSgst)}</strong></div>
+              <div><span>Total IGST</span><strong>{money(viewBill.billDetails?.totalIgst)}</strong></div>
+              <div><span>Round off</span><strong>{money(viewBill.billDetails?.roundOff)}</strong></div>
+              <div><span>Grand total</span><strong>{money(viewBill.billDetails?.grandTotal)}</strong></div>
+              <div><span>Cash paid</span><strong>{money(viewBill.billDetails?.cash)}</strong></div>
+              <div><span>Credit</span><strong>{money(viewBill.billDetails?.credit)}</strong></div>
             </div>
             <div className="gst-view-actions">
               <button type="button" onClick={() => { loadBillForEdit(viewBill); setViewBill(null); }}>Edit this bill</button>

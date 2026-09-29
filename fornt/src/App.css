@@ -13,6 +13,18 @@
   flex: 1 0 auto;
 }
 
+/* Logged-in app: left sidebar (MainNav) + a column with the page and footer. */
+.app-shell--sidebar { flex-direction: row; }
+.app-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0; /* lets wide tables scroll inside the page instead of widening it */
+}
+@media (max-width: 900px) {
+  .app-shell--sidebar { flex-direction: column; }
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;

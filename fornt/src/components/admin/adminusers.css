@@ -1,0 +1,14 @@
+.admin-users-business { font-size: 12.5px; white-space: nowrap; }
+.admin-users-role { color: #64748b; text-transform: capitalize; }
+
+.admin-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+.admin-pill-admin { color: #92400e; background: #fef3c7; }
+.admin-pill-active { color: #065f46; background: #d1fae5; margin-left: 0; }
+.admin-pill-disabled { color: #991b1b; background: #fee2e2; margin-left: 0; }

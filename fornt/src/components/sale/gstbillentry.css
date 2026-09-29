@@ -10,10 +10,15 @@
 
 /* Left: bill entry form. Right: bill list. Same two-column idea as the old
    sale.css .sale-entry-container (form flex:9 / summary flex:3), as a grid. */
-.gst-bill-page { box-sizing: border-box; min-height: 100vh; padding: 10px; color: #19302a; }
-.gst-bill-layout { display: grid; grid-template-columns: 9fr 3fr; gap: 10px; align-items: start; max-width: 1700px; margin: 0 auto; }
-.gst-bill-card, .gst-bill-list-card { width: 100%; box-sizing: border-box; padding: 12px; background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(28, 63, 52, .12); }
-.gst-bill-list-card { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; }
+.gst-bill-page { box-sizing: border-box; min-height: 100vh; padding: 3px; color: #19302a; }
+.gst-bill-layout { display: grid; grid-template-columns: 9fr 3fr; gap: 5px; align-items: start; max-width: 1700px; margin: 0 auto; }
+/* Entry Settings → bill list off: the form takes the full width. */
+.gst-bill-layout.no-bill-list { grid-template-columns: 1fr; }
+.gst-bill-card, .gst-bill-list-card { width: 100%; box-sizing: border-box; padding: 6px; background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(28, 63, 52, .12); }
+/* Lets rows inside the form (e.g. the refs row) respond to the form's own width,
+   which depends on the two-column layout, not just the window width. */
+.gst-bill-card { container-type: inline-size; }
+.gst-bill-list-card { position: sticky; top: 5px; max-height: calc(100vh - 40px); overflow-y: auto; }
 
 @media (max-width: 600px) {
   .gst-bill-page { padding: 20px 12px; }
@@ -26,6 +31,44 @@
 
 .gst-bill-form fieldset { margin: 0 0 6px; padding: 0; border: 0; }
 .gst-bill-form legend { margin-bottom: 4px; font-size: 17px; font-weight: 700; }
+
+/* Shared field look for both this page and the Estimate billing page
+   (fornt/src/components/estimate/estimateBillEntry.js reuses this stylesheet).
+   Soft border + resting shadow, a touch darker on hover. Focus is a plain
+   border-color change with no glow ring — a thick box-shadow read as "too much"
+   once several small fields (HSN/Qty/Price/GST%) sit close together in a row. */
+.gst-bill-page input[type="text"],
+.gst-bill-page input[type="number"],
+.gst-bill-page input[type="date"],
+.gst-bill-page input[type="search"],
+.gst-bill-page select {
+  border: 1px solid #c3d6cd;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 40, 30, .06);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.gst-bill-page input[type="text"]:hover,
+.gst-bill-page input[type="number"]:hover,
+.gst-bill-page input[type="date"]:hover,
+.gst-bill-page input[type="search"]:hover,
+.gst-bill-page select:hover {
+  border-color: #9bc3b1;
+}
+.gst-bill-page input[type="text"]:focus,
+.gst-bill-page input[type="number"]:focus,
+.gst-bill-page input[type="date"]:focus,
+.gst-bill-page input[type="search"]:focus,
+.gst-bill-page select:focus {
+  border-color: #237553;
+  outline: none;
+  box-shadow: none;
+}
+.gst-bill-page input[disabled] {
+  background: #f3f6f4;
+  box-shadow: none;
+  color: #7c9c92;
+}
 
 /* Same proportions as sale.css's .sale-product-input-grid, but flexible (minmax)
    so the row still fits inside the narrower left column instead of overflowing. */
@@ -59,6 +102,14 @@
 .gst-delete-button { color: #a12d27; background: #fff; border: 1px solid #e4aaa6; }
 .gst-view-button { color: #15593e; background: #e1f2e9; border: 1px solid #a9d8bd; }
 
+/* Compact bill list in the right-hand panel: smaller text, tighter cells and button. */
+.gst-bill-list-card .gst-table { font-size: 12px; }
+.gst-bill-list-card .gst-table th { padding: 6px 6px; font-size: 10.5px; letter-spacing: .02em; }
+.gst-bill-list-card .gst-table td { padding: 4px 6px; vertical-align: middle; }
+.gst-bill-list-card .gst-table-state { padding: 16px !important; }
+.gst-bill-list-card .gst-row-actions { gap: 4px; }
+.gst-bill-list-card .gst-view-button { padding: 2px 8px; font-size: 11.5px; line-height: 1.4; border-radius: 5px; cursor: pointer; }
+
 .gst-hsn-toggle { flex-direction: row !important; align-items: center; gap: 6px !important; font-weight: 600; color: #476159; }
 .gst-hsn-toggle input { width: auto; min-height: 0; }
 
@@ -71,6 +122,10 @@
 .gst-bill-list-card .gst-bill-filter { flex-wrap: nowrap; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
 .gst-bill-list-card .gst-bill-filter > label { flex: 0 0 auto; }
 .gst-bill-list-card .gst-bill-filter input { min-width: 120px; }
+/* Compact filters in the right-hand panel (From / To / Search). */
+.gst-bill-list-card .gst-bill-filter { gap: 6px; margin-bottom: 10px; }
+.gst-bill-list-card .gst-bill-filter label { gap: 2px; font-size: 11px; }
+.gst-bill-list-card .gst-bill-filter input { min-width: 95px; min-height: 28px; padding: 3px 6px; font-size: 12px; border-radius: 5px; }
 @media (max-width: 600px) {
   .gst-bill-filter { align-items: stretch; flex-direction: column; }
   .gst-bill-filter input { width: auto; }
@@ -114,14 +169,78 @@
 .gst-compact-input { max-width: 140px; padding: 4px 6px; font-size: 12px; }
 
 /* Customer name, GSTIN, bill number, date, tax type and place of supply — all in one row. */
-.gst-bill-header-row { display: grid; grid-template-columns: minmax(300px, 1fr) 150px 80px 80px 80px 130px; gap: 10px; align-items: end; }
+/* Last column fits the Place of Supply input plus its "✎ Ship to" button. */
+.gst-bill-header-row { display: grid; grid-template-columns: minmax(300px, 1fr) 150px 80px 80px 80px 220px; gap: 10px; align-items: end; }
 .gst-bill-remark-row { margin-top: 10px; }
+
+/* Optional DC / buyer's PO references — a light panel under the header row so
+   they read as secondary to the required bill fields. Each number sits next to
+   its own date; dates get enough width for the browser's date picker. */
+.gst-bill-refs-row {
+  display: grid;
+  /* DC No | DC Date | PO No | PO Date | Ship to — all on one line. */
+  grid-template-columns: minmax(110px, 170px) 135px minmax(110px, 170px) 135px minmax(280px, 1fr);
+  gap: 6px 10px;
+  align-items: end;
+  margin-top: 10px;
+  padding: 8px 12px 10px;
+  background: #f5faf8;
+  border: 1px solid #dbe8e2;
+  border-radius: 8px;
+}
+.gst-bill-refs-title { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #3f5c52; text-transform: uppercase; letter-spacing: .04em; }
+.gst-bill-refs-title small { font-weight: 400; text-transform: none; letter-spacing: 0; color: #7c9c92; }
+.gst-view-transport div { background: #f1f6fb; }
+/* Transport details row above the totals: all fields on one wrapping line. */
+.gst-transport-row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: end; margin-bottom: 12px; }
+.gst-transport-row .gst-bill-refs-title { flex-basis: 100%; }
+.gst-transport-row .gst-input-field { flex: 1 1 130px; max-width: 200px; }
+.gst-transport-row label { display: block; margin-bottom: 3px; font-size: 13px; }
+.gst-transport-row .gst-text-input { width: 100%; box-sizing: border-box; }
+.gst-bill-refs-row label { display: block; margin-bottom: 3px; font-size: 13px; }
+/* Ship-to as the last cell of the refs row: dropdown styled like the other fields,
+   address beside it (one line each, cut with … and shown in full on hover), and no
+   panel background/border of its own (no panel-in-panel). */
+.gst-bill-refs-ship { min-width: 0; padding-left: 12px; border-left: 1px dashed #c9dcd3; }
+.gst-bill-refs-ship .ship-to-panel { grid-template-columns: minmax(150px, 190px) minmax(0, 1fr); gap: 10px; align-items: end; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; }
+.gst-bill-refs-ship .ship-to-select span { font-size: 13px; font-weight: 400; color: inherit; text-transform: none; letter-spacing: 0; }
+.gst-bill-refs-ship .ship-to-summary { font-size: 12px; line-height: 1.35; }
+.gst-bill-refs-ship .ship-to-summary > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Delivery challan header (dcEntry.js): challan fields on the first row, then
+   tax type + place of supply + ship-to together in a panel styled like the refs row. */
+.dc-header-row { display: grid; grid-template-columns: minmax(240px, 1fr) 170px 130px 140px 200px; gap: 10px; align-items: end; }
+.dc-supply-row {
+  display: grid;
+  grid-template-columns: 190px 240px minmax(280px, 1fr);
+  gap: 6px 10px;
+  align-items: end;
+  margin-top: 10px;
+  padding: 8px 12px 10px;
+  background: #f5faf8;
+  border: 1px solid #dbe8e2;
+  border-radius: 8px;
+}
+@container (max-width: 900px) {
+  .dc-header-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dc-supply-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .dc-header-row, .dc-supply-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* Form too narrow for one line: DC/PO fields first, ship-to on its own line below. */
+@container (max-width: 900px) {
+  .gst-bill-refs-row { grid-template-columns: minmax(110px, 170px) 135px minmax(110px, 170px) 135px; }
+  .gst-bill-refs-ship { grid-column: 1 / -1; padding: 8px 0 0; border-left: 0; border-top: 1px dashed #c9dcd3; }
+}
 
 @media (max-width: 1100px) {
   .gst-bill-header-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 600px) {
-  .gst-bill-header-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gst-bill-header-row,
+  .gst-bill-refs-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .gst-totals-row { display: grid; grid-template-columns: minmax(320px, 560px) 1fr; gap: 20px; align-items: start; }
@@ -130,7 +249,18 @@
 .gst-totals-table th { background: #eef4f1; color: #5e706a; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .gst-totals-table td { font-weight: 700; color: #19302a; border-bottom: 0; }
 .gst-totals-table .gst-grand-total-cell { background: #e1f2e9; color: #15593e; font-size: 17px; }
-.gst-totals-side { display: flex; flex-direction: column; gap: 10px; max-width: 260px; }
+/* 2 columns instead of stacking all 4 fields in one column: Cash+Credit on the
+   left, Balance due+Remark on the right. grid-auto-flow: column with 2 explicit
+   rows fills top-to-bottom within a column before moving to the next one, so
+   source order (Cash, Credit, Balance, Remark) lands as left-column-then-right. */
+.gst-totals-side {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  gap: 10px 16px;
+  max-width: 440px;
+}
 .gst-balance-due { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 6px; }
 .gst-balance-due span { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .gst-balance-due strong { font-size: 15px; }
@@ -141,10 +271,20 @@
 .gst-balance-due.settled { background: #e1f2e9; }
 .gst-balance-due.settled span, .gst-balance-due.settled strong { color: #15593e; }
 
+/* GST bill: transport + totals on the left, payment fields on the right. */
+.gst-bill-bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; }
+.gst-bill-bottom-left { min-width: 0; }
+.gst-bill-bottom .gst-totals-row { grid-template-columns: minmax(0, 560px); }
+
+@media (max-width: 1000px) {
+  .gst-bill-bottom { grid-template-columns: 1fr; }
+}
 @media (max-width: 700px) {
   .gst-totals-row { grid-template-columns: 1fr; }
-  .gst-totals-side { max-width: none; }
   .gst-totals-table { overflow-x: auto; display: block; }
+}
+@media (max-width: 500px) {
+  .gst-totals-side { grid-template-columns: 1fr; grid-auto-flow: row; max-width: none; }
 }
 
 @media (max-width: 900px) {
@@ -154,8 +294,16 @@
 .gst-form-status { margin: -8px 0 20px; padding: 11px 12px; border-radius: 8px; }
 .gst-form-status.success { color: #15593e; background: #def3e8; }
 .gst-form-status.error { color: #9e2c25; background: #fde8e6; }
-.gst-form-actions { display: flex; justify-content: flex-end; gap: 12px; }
-.gst-form-actions button { padding: 11px 18px; font: inherit; font-weight: 700; border-radius: 8px; cursor: pointer; }
+.gst-form-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.gst-form-actions button { padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 700; line-height: 1.3; border-radius: 6px; cursor: pointer; }
+/* "Print last bill" + A5, joined as one split button, pushed to the left of Clear / Save. */
+.gst-print-last { display: flex; }
+/* GST bill: totals table on the left, Print / Clear / Save on the right, one row. */
+.gst-bill-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
+.gst-bill-footer .gst-totals-table { width: auto; flex: 0 1 560px; }
+.gst-bill-footer .gst-form-actions { margin-left: auto; flex-wrap: wrap; }
+.gst-print-last button:first-child { border-radius: 6px 0 0 6px; }
+.gst-print-last button:last-child { padding-left: 9px; padding-right: 9px; border-left: 0; border-radius: 0 6px 6px 0; }
 .gst-primary-button { color: #fff; background: #237553; border: 1px solid #237553; }
 .gst-primary-button:hover:not(:disabled) { background: #185c40; }
 .gst-primary-button:disabled { cursor: wait; opacity: .7; }

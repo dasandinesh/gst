@@ -1,0 +1,21 @@
+.prefs-page { box-sizing: border-box; padding: 20px 12px; color: #19302a; }
+.prefs-card { max-width: 640px; margin: 0 auto; padding: 20px; background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(28, 63, 52, .12); }
+.prefs-card h2 { margin: 0 0 6px; color: #12352c; }
+.prefs-intro { margin: 0 0 16px; font-size: 13px; color: #5e706a; }
+.prefs-loading { color: #5e706a; }
+
+.prefs-group { margin: 0 0 14px; padding: 10px 14px; border: 1px solid #d6e5de; border-radius: 12px; }
+.prefs-group legend { padding: 0 6px; font-size: 12px; font-weight: 700; color: #3f5c52; text-transform: uppercase; letter-spacing: .04em; }
+.prefs-option { display: flex; gap: 10px; align-items: flex-start; padding: 8px 4px; border-bottom: 1px dashed #e3ede8; cursor: pointer; }
+.prefs-option:last-child { border-bottom: 0; }
+.prefs-option input { width: 18px; height: 18px; margin-top: 2px; accent-color: #237553; flex: 0 0 auto; }
+.prefs-option span { display: flex; flex-direction: column; gap: 2px; }
+.prefs-option strong { font-size: 14px; color: #1f4b3e; }
+.prefs-option small { font-size: 12px; color: #6b8079; }
+
+.prefs-status { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; font-size: 13px; }
+.prefs-status.success { background: #e1f2e9; color: #15593e; }
+.prefs-status.error { background: #fde8e6; color: #9e2c25; }
+.prefs-actions { display: flex; justify-content: flex-end; }
+.prefs-save { padding: 9px 20px; font: inherit; font-weight: 700; color: #fff; background: #2c7159; border: 0; border-radius: 8px; cursor: pointer; }
+.prefs-save:disabled { opacity: .6; cursor: default; }

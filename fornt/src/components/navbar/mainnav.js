@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import NavIcon from './navicons';
 import { useAuth } from '../../authContext';
 import './mainnav.css';
 
 const DASHBOARD_LINK = { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' };
+const PREFERENCES_LINK = { to: '/entry-settings', label: 'Preferences', icon: 'gear' };
 
-// GST Billing/Purchases/Stock, grouped into one dropdown — same pattern as
+// GST Billing/Purchases/Stock, grouped into one collapsible group — same pattern as
 // Master/Notes/Accounts/Reports — instead of five flat top-level links.
 const NAV_LINKS = [
   // { to: '/order-entry', label: 'Orders', icon: 'cart' },
@@ -15,14 +16,30 @@ const NAV_LINKS = [
   // { to: '/sale-entry', label: 'Sales', icon: 'tag' },
   { to: '/gst-billing', label: 'GST Billing', icon: 'tag' },
   { to: '/gst-bill-list', label: 'GST Bills', icon: 'fileText' },
+  { to: '/delivery-challan', label: 'Delivery Challan', icon: 'truck' },
+  { to: '/delivery-challan-list', label: 'Delivery Challans', icon: 'fileText' },
+  { to: '/buyer-po', label: "Buyer's PO Entry", icon: 'clipboard' },
+  { to: '/buyer-po-list', label: "Buyers' POs", icon: 'fileText' },
   // { to: '/sale-list', label: 'Sale Bills', icon: 'fileText' },
   { to: '/purchase-entry', label: 'Purchase Entry', icon: 'cart' },
   { to: '/purchase-list', label: 'Purchase Bills', icon: 'fileText' },
   { to: '/stock-maintenance', label: 'Stock Maintenance', icon: 'box' },
 ];
 
-// Credit/debit note entry+list, grouped into their own dropdown so they don't add
+// Credit/debit note entry+list, grouped into their own group so they don't add
 // four more flat top-level links next to GST Billing/Purchases.
+// Estimate/Quotation entry+list plus its own customer/product masters —
+// kept fully separate from the real GST Billing/Master data (own stock
+// counter, own customer balance).
+const ESTIMATE_LINKS = [
+  { to: '/estimate-billing', label: 'Estimate Billing', icon: 'tag' },
+  { to: '/estimate-bill-list', label: 'Estimate Bills', icon: 'fileText' },
+  // { to: '/estimate-customers', label: 'Estimate Customer Add', icon: 'add' },
+  { to: '/estimate-customer-list', label: 'Estimate Customer List', icon: 'users' },
+  // { to: '/estimate-products', label: 'Estimate Product Add', icon: 'add' },
+  { to: '/estimate-product-list', label: 'Estimate Product List', icon: 'box' },
+];
+
 const NOTES_LINKS = [
   { to: '/credit-note-entry', label: 'Credit Note', icon: 'pencil' },
   { to: '/credit-note-list', label: 'Credit Notes', icon: 'fileText' },
@@ -42,9 +59,10 @@ const MASTER_LINKS = [
   { to: '/suppliers', label: 'Supplier Add', icon: 'add' },
   { to: '/supplier-list', label: 'Supplier List', icon: 'users' },
   { to: '/invoice-setting', label: 'Invoice Setting', icon: 'gear' },
+  { to: '/profile', label: 'Profile', icon: 'users' },
 ];
 
-// Grouped into their own dropdown — with 10+ top-level links the two Price Update
+// Grouped into their own group — with 10+ top-level links the two Price Update
 // pages were easy to miss buried inline, so they get a clearly-labeled home instead.
 // const PRICE_LINKS = [
 //   { to: '/price-update', label: 'Sale Price Update', icon: 'pencil' },
@@ -63,9 +81,22 @@ const REPORT_LINKS = [
   { to: '/day-book', label: 'Day Book', icon: 'fileText' },
 ];
 
+const GROUPS = [
+  { id: 'transactions', label: 'Transactions', icon: 'tag', links: NAV_LINKS },
+  { id: 'estimate', label: 'Estimate', icon: 'fileText', links: ESTIMATE_LINKS },
+  { id: 'notes', label: 'Notes', icon: 'fileText', links: NOTES_LINKS },
+  { id: 'accounts', label: 'Accounts', icon: 'wallet', links: ACCOUNT_LINKS },
+  { id: 'reports', label: 'Reports', icon: 'clipboard', links: REPORT_LINKS },
+  { id: 'master', label: 'Master', icon: 'layers', links: MASTER_LINKS },
+];
+
+// The group holding the page at `pathname` (e.g. /customer-list/123 → master), or null.
+const groupFor = (pathname) => GROUPS.find((g) => g.links.some((l) => pathname === l.to || pathname.startsWith(`${l.to}/`)))?.id || null;
+
 const linkClass = ({ isActive }) => `mainnav-link${isActive ? ' is-active' : ''}`;
 
-const NavDropdown = ({ id, label, icon, links, onNavigate, openId, onToggle }) => {
+// A collapsible sidebar group: click the heading to open/close its links.
+const NavGroup = ({ id, label, icon, links, onNavigate, openId, onToggle }) => {
   const isOpen = openId === id;
   return (
     <div className={`mainnav-dropdown${isOpen ? ' is-open' : ''}`}>
@@ -90,28 +121,33 @@ const NavDropdown = ({ id, label, icon, links, onNavigate, openId, onToggle }) =
   );
 };
 
+// Left sidebar on desktop; on phones it collapses to a top bar with a
+// hamburger that slides the same links open (handled in mainnav.css).
 const MainNav = () => {
-  // Bootstrap-style collapsible nav: hidden behind a hamburger toggler under the
-  // mobile breakpoint, always visible above it (handled in mainnav.css).
+  // Phone only: whether the hamburger panel is open.
   const [open, setOpen] = useState(false);
-  // Which submenu (Master/Accounts) is expanded on mobile — null means both collapsed.
-  const [openDropdown, setOpenDropdown] = useState(null);
+  const location = useLocation();
+  // Which group is expanded — starts on (and follows) the group of the current page.
+  const [openGroup, setOpenGroup] = useState(() => groupFor(location.pathname));
   const navRef = useRef(null);
   const { session, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const current = groupFor(location.pathname);
+    if (current) setOpenGroup(current);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
   };
 
-  const close = () => {
-    setOpen(false);
-    setOpenDropdown(null);
-  };
-  const toggleDropdown = (id) => setOpenDropdown((current) => (current === id ? null : id));
+  // Picking a page closes the phone panel; the sidebar group stays open.
+  const close = () => setOpen(false);
+  const toggleGroup = (id) => setOpenGroup((current) => (current === id ? null : id));
 
-  // Close the mobile menu on outside click or Escape — same as Bootstrap's navbar.
+  // Close the phone panel on outside click or Escape — same as Bootstrap's navbar.
   useEffect(() => {
     if (!open) return undefined;
     const handleClick = (e) => {
@@ -128,6 +164,12 @@ const MainNav = () => {
 
   return (
     <nav className="mainnav" aria-label="Main navigation" ref={navRef}>
+      {session && (
+        <NavLink to="/profile" className="mainnav-user-info" title="Profile" onClick={close}>
+          <span className="mainnav-business-name">{session.business.name}</span>
+          <span className="mainnav-user-name">{session.user.name}</span>
+        </NavLink>
+      )}
 
       <button
         type="button"
@@ -147,23 +189,17 @@ const MainNav = () => {
           <NavIcon name={DASHBOARD_LINK.icon} />
           <span>{DASHBOARD_LINK.label}</span>
         </NavLink>
-        <NavDropdown id="transactions" label="Transactions" icon="tag" links={NAV_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
-        <NavDropdown id="notes" label="Notes" icon="fileText" links={NOTES_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
-        <NavDropdown id="accounts" label="Accounts" icon="wallet" links={ACCOUNT_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
-        <NavDropdown id="reports" label="Reports" icon="clipboard" links={REPORT_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
-        <NavDropdown id="master" label="Master" icon="layers" links={MASTER_LINKS} onNavigate={close} openId={openDropdown} onToggle={toggleDropdown} />
+        {GROUPS.map((group) => (
+          <NavGroup key={group.id} {...group} onNavigate={close} openId={openGroup} onToggle={toggleGroup} />
+        ))}
 
-      </div>
-
-      <div className="mainnav-user">
-        {/* <span className="mainnav-user-avatar"><img src="/images/user.png" alt="User" /></span> */}
-        {session && (
-          <div className="mainnav-user-info">
-            <span className="mainnav-business-name">{session.business.name}</span>
-            <span className="mainnav-user-name">{session.user.name}</span>
-          </div>
-        )}
-        <button type="button" className="mainnav-logout" onClick={handleLogout}>Log out</button>
+        <div className="mainnav-bottom">
+          <NavLink to={PREFERENCES_LINK.to} className={linkClass} onClick={close}>
+            <NavIcon name={PREFERENCES_LINK.icon} />
+            <span>{PREFERENCES_LINK.label}</span>
+          </NavLink>
+          <button type="button" className="mainnav-logout" onClick={handleLogout}>Log out</button>
+        </div>
       </div>
     </nav>
   );

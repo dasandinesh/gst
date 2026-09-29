@@ -22,3 +22,15 @@
 .reports-file-actions { align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .reports-file-upload { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #64748b; font-weight: 600; }
 .reports-file-upload input[type="file"] { font: inherit; font-size: 12px; }
+
+/* GSTR-1 "Check before export" results. */
+.gstr1-check { margin-top: 10px; }
+.gstr1-check-ok { background: #e6f4ee; color: #15593e; font-weight: 600; }
+.gstr1-count-error { color: #9e2c25; }
+.gstr1-count-warning { color: #92400e; }
+.gstr1-check-table td { vertical-align: top; font-size: 12.5px; }
+.gstr1-check-table tr.gstr1-error td:first-child { border-left: 3px solid #d64545; }
+.gstr1-check-table tr.gstr1-warning td:first-child { border-left: 3px solid #d9a21b; }
+.gstr1-badge { display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 700; border-radius: 999px; white-space: nowrap; }
+.gstr1-badge.error { background: #fde8e6; color: #9e2c25; }
+.gstr1-badge.warning { background: #fef3c7; color: #92400e; }

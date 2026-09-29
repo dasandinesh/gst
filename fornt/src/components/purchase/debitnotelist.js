@@ -65,7 +65,7 @@ const DebitNoteList = () => {
     loadNotes(filters, next);
   };
 
-  const pageTotal = notes.reduce((sum, note) => sum + Number(note.bill_details?.debitNoteAmount || 0), 0);
+  const pageTotal = notes.reduce((sum, note) => sum + Number(note.billDetails?.grandTotal || 0), 0);
 
   return (
     <main className="gst-bill-page">
@@ -109,12 +109,12 @@ const DebitNoteList = () => {
                 <tr><td colSpan="7" className="gst-table-state">No debit notes match this filter.</td></tr>
               ) : notes.map((note) => (
                 <tr key={note._id}>
-                  <td className="gst-row-name">{note.bill_details?.debitNoteNumber}</td>
-                  <td>{displayDate(note.bill_details?.date)}</td>
+                  <td className="gst-row-name">{note.billDetails?.debitNoteNumber}</td>
+                  <td>{displayDate(note.billDetails?.date)}</td>
                   <td>{note.originalBill?.billNumber}</td>
                   <td>{note.supplier?.name}</td>
-                  <td>{note.bill_details?.reason}</td>
-                  <td>{money(note.bill_details?.debitNoteAmount)}</td>
+                  <td>{note.billDetails?.reason}</td>
+                  <td>{money(note.billDetails?.grandTotal)}</td>
                   <td className="gst-row-actions">
                     <button type="button" className="gst-view-button" onClick={() => setViewNote(note)}>View</button>
                   </td>
@@ -148,32 +148,32 @@ const DebitNoteList = () => {
         <div className="gst-view-overlay" onClick={() => setViewNote(null)}>
           <div className="gst-view-modal" onClick={(e) => e.stopPropagation()}>
             <div className="gst-view-header">
-              <h3>Debit note {viewNote.bill_details?.debitNoteNumber}</h3>
+              <h3>Debit note {viewNote.billDetails?.debitNoteNumber}</h3>
               <button type="button" onClick={() => setViewNote(null)}>✕</button>
             </div>
             <div className="gst-view-meta">
               <div><span>Supplier</span><strong>{viewNote.supplier?.name}</strong></div>
-              <div><span>Date</span><strong>{displayDate(viewNote.bill_details?.date)}</strong></div>
+              <div><span>Date</span><strong>{displayDate(viewNote.billDetails?.date)}</strong></div>
               <div><span>Against bill</span><strong>{viewNote.originalBill?.billNumber}</strong></div>
-              <div><span>Reason</span><strong>{viewNote.bill_details?.reason}</strong></div>
-              <div><span>Tax type</span><strong>{viewNote.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
-              <div><span>Place of supply</span><strong>{viewNote.bill_details?.placeOfSupply || '—'}</strong></div>
+              <div><span>Reason</span><strong>{viewNote.billDetails?.reason}</strong></div>
+              <div><span>Tax type</span><strong>{viewNote.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
+              <div><span>Place of supply</span><strong>{viewNote.billDetails?.placeOfSupply || '—'}</strong></div>
             </div>
             <table className="gst-view-table">
               <thead><tr><th>Product</th><th>HSN</th><th>Qty</th><th>Price</th><th>GST%</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th></tr></thead>
               <tbody>
-                {(viewNote.products || []).map((p, index) => (
-                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.price)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.total)}</td></tr>
+                {(viewNote.items || []).map((p, index) => (
+                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.rate)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.amount)}</td></tr>
                 ))}
               </tbody>
             </table>
             <div className="gst-view-totals">
-              <div><span>Subtotal</span><strong>{money(viewNote.bill_details?.subtotal)}</strong></div>
-              <div><span>Total CGST</span><strong>{money(viewNote.bill_details?.totalCgst)}</strong></div>
-              <div><span>Total SGST</span><strong>{money(viewNote.bill_details?.totalSgst)}</strong></div>
-              <div><span>Total IGST</span><strong>{money(viewNote.bill_details?.totalIgst)}</strong></div>
-              <div><span>Round off</span><strong>{money(viewNote.bill_details?.roundOff)}</strong></div>
-              <div><span>Debit note amount</span><strong>{money(viewNote.bill_details?.debitNoteAmount)}</strong></div>
+              <div><span>Subtotal</span><strong>{money(viewNote.billDetails?.totalTaxableValue)}</strong></div>
+              <div><span>Total CGST</span><strong>{money(viewNote.billDetails?.totalCgst)}</strong></div>
+              <div><span>Total SGST</span><strong>{money(viewNote.billDetails?.totalSgst)}</strong></div>
+              <div><span>Total IGST</span><strong>{money(viewNote.billDetails?.totalIgst)}</strong></div>
+              <div><span>Round off</span><strong>{money(viewNote.billDetails?.roundOff)}</strong></div>
+              <div><span>Debit note amount</span><strong>{money(viewNote.billDetails?.grandTotal)}</strong></div>
             </div>
             <div className="gst-view-actions">
               <button type="button" onClick={() => setViewNote(null)}>Close</button>

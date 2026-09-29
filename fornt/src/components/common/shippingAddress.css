@@ -1,0 +1,57 @@
+/* Ship-to strip and "other address" popup — same palette as gstbillentry.css
+   (green-grey panel like the References row, #237553 accents). */
+
+/* Place of Supply input with the "Ship to" edit button beside it. */
+.pos-with-button { display: flex; gap: 6px; align-items: stretch; }
+.pos-with-button input { flex: 1; min-width: 0; }
+.ship-to-edit-button {
+  flex: 0 0 auto;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #237553;
+  white-space: nowrap;
+  background: #fff;
+  border: 1px solid #9bc3b1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ship-to-edit-button:hover { background: #eef6f2; border-color: #237553; }
+
+.ship-to-panel {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #f5faf8;
+  border: 1px solid #dbe8e2;
+  border-radius: 8px;
+}
+.ship-to-select { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+.ship-to-select span { font-size: 12px; font-weight: 700; color: #3f5c52; text-transform: uppercase; letter-spacing: .04em; }
+.ship-to-select select { width: 100%; padding: 5px; box-sizing: border-box; }
+.ship-to-summary { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 13px; color: #1f4b3e; }
+.ship-to-summary strong { color: #12352c; }
+.ship-to-summary small { color: #5e706a; }
+.ship-to-empty { color: #7c9c92; font-style: italic; }
+
+.ship-modal { width: min(620px, 100%); }
+.ship-modal-hint { margin: -6px 0 12px; font-size: 13px; color: #5e706a; }
+.ship-modal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
+.ship-modal-field { display: flex; flex-direction: column; gap: 3px; margin: 0; font-size: 13px; color: #33443e; }
+.ship-modal-field b { color: #b42318; }
+.ship-modal-field input, .ship-modal-field select { width: 100%; padding: 6px 8px; box-sizing: border-box; font: inherit; border: 1px solid #c3d6cd; border-radius: 6px; background: #fff; }
+.ship-modal-field input:focus, .ship-modal-field select:focus { border-color: #237553; outline: none; }
+.ship-field-contactName { grid-column: span 2; }
+.ship-modal-save { display: flex; gap: 8px; align-items: center; margin: 14px 0 0; font-size: 13px; color: #1f4b3e; cursor: pointer; }
+.ship-modal-save input { width: 16px; height: 16px; accent-color: #237553; }
+.ship-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.ship-modal-actions button { padding: 9px 16px; font: inherit; font-weight: 700; border-radius: 8px; cursor: pointer; }
+
+@media (max-width: 600px) {
+  .ship-to-panel { grid-template-columns: 1fr; }
+  .ship-modal-grid { grid-template-columns: 1fr 1fr; }
+}

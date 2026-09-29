@@ -113,6 +113,53 @@ const firstOfMonth = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
+const KIND_LABEL = { bill: 'GST bill', creditNote: 'Credit note', business: 'Your business' };
+const shortDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN') : '');
+
+// Result of "Check before export": a summary line, then one row per problem, errors first.
+const Gstr1Checklist = ({ check }) => {
+  if (check.loading) return <p className="acc-status">Checking bills…</p>;
+  if (check.error) return <p className="acc-status error">{check.error}</p>;
+  const { issues, counts } = check;
+  if (!issues.length) {
+    return (
+      <p className="acc-status gstr1-check-ok">
+        ✓ All clear — {counts.bills} bill(s) and {counts.creditNotes} credit note(s) checked, no problems found. Ready to export.
+      </p>
+    );
+  }
+  const sorted = [...issues].sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1));
+  return (
+    <div className="gstr1-check">
+      <p className="acc-status">
+        Checked {counts.bills} bill(s) and {counts.creditNotes} credit note(s):{' '}
+        <strong className="gstr1-count-error">{counts.errors} to fix</strong>
+        {counts.warnings ? <>, <strong className="gstr1-count-warning">{counts.warnings} to review</strong></> : null}.
+        {' '}Fix the red ones in the bill (Transactions → GST Bills → View → Edit), then check again.
+      </p>
+      <div className="acc-table-wrap">
+        <table className="acc-table gstr1-check-table">
+          <thead>
+            <tr><th></th><th>Document</th><th>Date</th><th>Customer</th><th>Problem</th><th>How to fix</th></tr>
+          </thead>
+          <tbody>
+            {sorted.map((issue, index) => (
+              <tr key={`${issue.id}-${index}`} className={`gstr1-${issue.severity}`}>
+                <td><span className={`gstr1-badge ${issue.severity}`}>{issue.severity === 'error' ? 'Fix' : 'Review'}</span></td>
+                <td>{KIND_LABEL[issue.kind]}{issue.number ? <><br /><strong>{issue.number}</strong></> : null}</td>
+                <td>{shortDate(issue.date)}</td>
+                <td>{issue.customer}</td>
+                <td>{issue.problem}</td>
+                <td>{issue.fix}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 // GSTR-1/3B-style summary: net outward supplies (GST sales minus credit notes),
 // net inward supplies / input tax credit (purchases minus debit notes), the
 // resulting net tax payable, and the outward HSN-wise summary — all for a period.
@@ -123,6 +170,101 @@ const GstReports = () => {
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState(null); // null = live from server, else the imported file's name
   const fileInputRef = useRef(null);
+  const [gstr1, setGstr1] = useState(null); // last export / import result shown under the GSTR-1 card
+  const [gstr1Busy, setGstr1Busy] = useState(false);
+  const [gstr1Check, setGstr1Check] = useState(null); // checklist result: { issues, counts } / { loading } / { error }
+  const gstr1InputRef = useRef(null);
+
+  // Checklist before export: bills the portal would reject (bad GSTIN, missing HSN, wrong
+  // tax type for the place of supply, …). Returns the result, or null if it couldn't run.
+  const runGstr1Check = async () => {
+    setGstr1Busy(true);
+    setGstr1Check({ loading: true });
+    try {
+      const params = new URLSearchParams({ startDate: range.startDate, endDate: range.endDate });
+      const data = await fetchJson(`/api/reports/gst/gstr1/check?${params}`);
+      setGstr1Check(data);
+      return data;
+    } catch (error) {
+      setGstr1Check({ error: error.message });
+      return null;
+    } finally {
+      setGstr1Busy(false);
+    }
+  };
+
+  // Export always runs the checklist first; with errors it asks before downloading.
+  const checkThenExport = async () => {
+    const check = await runGstr1Check();
+    if (check?.counts.errors && !window.confirm(
+      `The checklist found ${check.counts.errors} problem(s) the GST portal will likely reject.\n\nFix them first (recommended), or export anyway?\n\nOK = export anyway · Cancel = fix first`,
+    )) return;
+    exportGstr1();
+  };
+
+  // GSTR-1 in the GST portal's offline-upload format (GSTR-1 → Prepare Offline → Upload).
+  const exportGstr1 = async () => {
+    setGstr1Busy(true);
+    setGstr1({ type: 'info', text: 'Building GSTR-1…' });
+    try {
+      const params = new URLSearchParams({ startDate: range.startDate, endDate: range.endDate });
+      const data = await fetchJson(`/api/reports/gst/gstr1?${params}`);
+      downloadBlob(JSON.stringify(data.json), `GSTR1_${data.json.gstin}_${data.fp}.json`, 'application/json');
+      const c = data.counts;
+      setGstr1({
+        type: 'success',
+        text: `Downloaded GSTR-1 for ${data.fp.slice(0, 2)}/${data.fp.slice(2)}: ${data.billCount} bill(s), ${data.creditNoteCount} credit note(s) — B2B ${c.b2b}, B2CL ${c.b2cl}, B2CS ${c.b2cs} row(s), CDNR ${c.cdnr}, CDNUR ${c.cdnur}, HSN ${c.hsn} row(s).`,
+        list: data.warnings,
+        listTitle: 'Check these before uploading — the portal may reject them:',
+      });
+    } catch (error) {
+      setGstr1({ type: 'error', text: error.message });
+    } finally {
+      setGstr1Busy(false);
+    }
+  };
+
+  // Previews first (nothing saved), asks, then imports — bills already in the app are skipped.
+  const importGstr1 = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setGstr1Busy(true);
+    setGstr1({ type: 'info', text: 'Reading file…' });
+    try {
+      const body = await file.text();
+      try { JSON.parse(body); } catch { throw new Error('That file is not valid JSON.'); }
+      const post = (preview) => fetchJson(`/api/reports/gst/gstr1/import${preview ? '?preview=1' : ''}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+      });
+      const preview = await post(true);
+      if (!preview.sales && !preview.creditNotes) {
+        setGstr1({ type: 'info', text: `Nothing new to import from "${file.name}".`, list: [...preview.duplicates.map((n) => `Already exists: ${n}`), ...preview.skipped], listTitle: 'Details:' });
+        return;
+      }
+      const ok = window.confirm(
+        `Import from "${file.name}"?\n\n${preview.sales} GST bill(s) and ${preview.creditNotes} credit note(s) will be created.`
+        + `${preview.duplicates.length ? `\n${preview.duplicates.length} already exist and will be skipped.` : ''}`
+        + '\n\nImported bills have one line per GST rate (GSTR-1 has no product details), and do not change customer balances or stock.'
+      );
+      if (!ok) { setGstr1(null); return; }
+      const result = await post(false);
+      setGstr1({
+        type: 'success',
+        text: `Imported ${result.sales} bill(s) and ${result.creditNotes} credit note(s).`,
+        list: [
+          ...result.duplicates.map((n) => `Skipped, already exists: ${n}`),
+          ...result.skipped.map((s) => `Not imported: ${s}`),
+          ...result.unmatchedGstins.map((g) => `No customer with GSTIN ${g} — saved as "GSTIN ${g}". Add the customer to link future bills.`),
+        ],
+        listTitle: 'Notes:',
+      });
+    } catch (error) {
+      setGstr1({ type: 'error', text: error.message });
+    } finally {
+      setGstr1Busy(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -239,6 +381,34 @@ const GstReports = () => {
         </div>
         {source && <p className="acc-status">Showing a report loaded from <strong>{source}</strong>, not live data. Click "Show" to go back to live figures.</p>}
         {status && <p className="acc-status error">{status}</p>}
+      </section>
+
+      <section className="acc-card">
+        <h1>GSTR-1 for the GST portal</h1>
+        <p className="acc-sub">
+          Export: builds the GSTR-1 JSON for the From–To period above (sales + credit notes / sales returns). Upload it on gst.gov.in → Returns → GSTR-1 → Prepare Offline → Upload.
+          Quarterly filers: pick the whole quarter. Import: loads a GSTR-1 JSON back in as GST bills and credit notes.
+        </p>
+        <div className="acc-actions reports-file-actions">
+          <button type="button" onClick={runGstr1Check} disabled={gstr1Busy || !range.startDate || !range.endDate}>Check before export</button>
+          <button type="button" onClick={checkThenExport} disabled={gstr1Busy || !range.startDate || !range.endDate}>Export GSTR-1 JSON</button>
+          <label className="reports-file-upload">
+            <span>Import GSTR-1 JSON</span>
+            <input ref={gstr1InputRef} type="file" accept=".json" onChange={importGstr1} disabled={gstr1Busy} />
+          </label>
+        </div>
+        {gstr1Check && <Gstr1Checklist check={gstr1Check} />}
+        {gstr1 && (
+          <div className={`acc-status${gstr1.type === 'error' ? ' error' : ''}`}>
+            <p>{gstr1.text}</p>
+            {gstr1.list?.length > 0 && (
+              <>
+                <p><strong>{gstr1.listTitle}</strong></p>
+                <ul>{gstr1.list.map((item) => <li key={item}>{item}</li>)}</ul>
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       {report && (

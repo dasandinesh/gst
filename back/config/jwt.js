@@ -13,6 +13,14 @@ const signSessionToken = ({ userId, businessId, role }) =>
 const signPendingToken = ({ userId }) =>
   jwt.sign({ sub: userId, pending: true }, process.env.JWT_SECRET, { expiresIn: '10m' });
 
+// Platform-admin token: deliberately has no businessId — the admin panel
+// operates across every business, not inside one — so it's kept on its own
+// `admin_token` cookie rather than reusing the business session's `token`.
+const signAdminToken = ({ userId }) =>
+  jwt.sign({ sub: userId, admin: true }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  });
+
 const verifyToken = (token) => jwt.verify(token, process.env.JWT_SECRET);
 
 // httpOnly so client-side JS can't read/steal it. The frontend's Vercel
@@ -30,6 +38,7 @@ const cookieOptions = (maxAgeMs) => ({
 
 const sessionCookieOptions = () => cookieOptions(Number(process.env.COOKIE_EXPIRES_TIME || 7) * 24 * 60 * 60 * 1000);
 const pendingCookieOptions = () => cookieOptions(10 * 60 * 1000);
+const adminCookieOptions = () => cookieOptions(Number(process.env.COOKIE_EXPIRES_TIME || 7) * 24 * 60 * 60 * 1000);
 
 // Clearing a cookie requires the same secure/sameSite attributes it was set
 // with, or some browsers won't recognize it as the same cookie to remove.
@@ -39,4 +48,4 @@ const clearCookieOptions = () => ({
   sameSite: 'lax',
 });
 
-module.exports = { signSessionToken, signPendingToken, verifyToken, sessionCookieOptions, pendingCookieOptions, clearCookieOptions };
+module.exports = { signSessionToken, signPendingToken, signAdminToken, verifyToken, sessionCookieOptions, pendingCookieOptions, adminCookieOptions, clearCookieOptions };

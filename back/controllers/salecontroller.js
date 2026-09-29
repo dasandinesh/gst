@@ -6,7 +6,7 @@ const number = (value) => Number(value) || 0;
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // How much a bill moves the customer's balance: billed amount owed minus what was paid on the bill.
-const saleImpact = (bill = {}) => number(bill.bill_amount) - number(bill.debit) - number(bill.credit);
+const saleImpact = (bill = {}) => number(bill.grandTotal) - number(bill.debit) - number(bill.credit);
 
 // Adjust a customer's running balance (customermodule `oldBalance`) by `delta`.
 // Returns { before, after } so callers can snapshot both on the bill.
@@ -23,64 +23,64 @@ const applyCustomerBalance = async (businessId, name, delta) => {
 // Bag rate / wage / commission are per-bag handling charges — they only apply when a
 // bag count was actually entered on the line. No bags → no bag price / wage / commission.
 const prepareSale = (body = {}) => {
-  const products = Array.isArray(body.products) ? body.products.filter((item) => item && item.name).map((item) => {
+  const items = Array.isArray(body.items) ? body.items.filter((item) => item && item.name).map((item) => {
     const quantity = number(item.quantity);
     const bags = number(item.bags);
-    const single_price = number(item.single_price);
-    const scale = item.scale || '';
+    const rate = number(item.rate);
+    const unit = item.unit || '';
     const hasBags = bags > 0;
     const bagRate = number(item.bagRate);
-    const wage = number(item.wage);
-    const commission = number(item.commission);
-    // Line amount is always quantity × single_price; bags never drive the price.
+    const wageRate = number(item.wageRate);
+    const commissionRate = number(item.commissionRate);
+    // Line amount is always quantity × rate; bags never drive the price.
     return {
       name: item.name,
       comment: item.comment || '',
-      tamil: item.tamil || '',
+      tamilName: item.tamilName || '',
       quantity,
       bags,
-      scale,
-      single_price,
-      base_price: quantity * single_price,
+      unit,
+      rate,
+      amount: quantity * rate,
       bagRate,
       bagAmount: hasBags ? bags * bagRate : 0,
-      wage,
-      wageAmount: hasBags ? bags * wage : 0,
-      commission,
-      commissionAmount: hasBags ? bags * commission : 0,
+      wageRate,
+      wageAmount: hasBags ? bags * wageRate : 0,
+      commissionRate,
+      commissionAmount: hasBags ? bags * commissionRate : 0,
     };
   }) : [];
 
-  const subtotal = products.reduce((total, item) => total + item.base_price, 0);
-  const bagAmountTotal = products.reduce((total, item) => total + item.bagAmount, 0);
-  const wageTotal = products.reduce((total, item) => total + item.wageAmount, 0);
-  const commissionTotal = products.reduce((total, item) => total + item.commissionAmount, 0);
-  const bill = body.bill_details || {};
+  const subtotal = items.reduce((total, item) => total + item.amount, 0);
+  const totalBagAmount = items.reduce((total, item) => total + item.bagAmount, 0);
+  const totalWage = items.reduce((total, item) => total + item.wageAmount, 0);
+  const totalCommission = items.reduce((total, item) => total + item.commissionAmount, 0);
+  const bill = body.billDetails || {};
   const freight = number(bill.freight);
-  const grandTotal = subtotal + bagAmountTotal + wageTotal + commissionTotal + freight;
+  const grandTotal = subtotal + totalBagAmount + totalWage + totalCommission + freight;
 
   return {
     customer: { name: body.customer?.name ?? body.customerName },
-    products,
-    bill_details: {
-      order_sno: bill.order_sno || '',
-      order_no: bill.order_no || '',
+    items,
+    billDetails: {
+      billNumber: bill.billNumber || '',
+      orderNumber: bill.orderNumber || '',
       mainParty: bill.mainParty || '',
       date: bill.date || new Date(),
-      bill_date: bill.bill_date || undefined,
-      total_quantity: products.reduce((total, item) => total + item.quantity, 0),
-      bag_quantity: products.reduce((total, item) => total + item.bags, 0),
+      billDate: bill.billDate || undefined,
+      totalQuantity: items.reduce((total, item) => total + item.quantity, 0),
+      totalBags: items.reduce((total, item) => total + item.bags, 0),
       weight: number(bill.weight),
       subtotal,
-      bagAmountTotal,
-      wageTotal,
-      commissionTotal,
+      totalBagAmount,
+      totalWage,
+      totalCommission,
       freight,
-      bill_amount: grandTotal,
+      grandTotal,
       balance: number(bill.balance),
       debit: number(bill.debit),
       credit: number(bill.credit),
-      remark: bill.remark || '',
+      notes: bill.notes || '',
       billed: Boolean(bill.billed),
     },
   };
@@ -89,18 +89,18 @@ const prepareSale = (body = {}) => {
 exports.createSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
-    if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the sale.' });
+    if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the sale.' });
     const businessId = req.auth.businessId;
     data.businessId = businessId;
     // Auto-assign the next bill serial number when the user didn't type one.
-    if (!data.bill_details.order_sno) {
-      data.bill_details.order_sno = String(await Counter.next(`${businessId}:sale`));
+    if (!data.billDetails.billNumber) {
+      data.billDetails.billNumber = String(await Counter.next(`${businessId}:sale`));
     }
     // Post this bill to the customer's running balance and snapshot before/after on the bill.
-    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
-    data.bill_details.old_balance = bal.before;
-    data.bill_details.net_balance = bal.after;
-    data.bill_details.balance = bal.after;
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.billDetails));
+    data.billDetails.openingBalance = bal.before;
+    data.billDetails.closingBalance = bal.after;
+    data.billDetails.balance = bal.after;
     const sale = await Sale.create(data);
     res.status(201).json(sale);
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -113,21 +113,21 @@ exports.getSales = async (req, res) => {
     // Free-text search box: matches customer name or bill number.
     if (req.query.q && req.query.q.trim()) {
       const rx = { $regex: escapeRegex(req.query.q.trim()), $options: 'i' };
-      filter.$or = [{ 'customer.name': rx }, { 'bill_details.order_sno': rx }];
+      filter.$or = [{ 'customer.name': rx }, { 'billDetails.billNumber': rx }];
     }
     if (req.query.billed === 'true' || req.query.billed === 'false') {
-      filter['bill_details.billed'] = req.query.billed === 'true';
+      filter['billDetails.billed'] = req.query.billed === 'true';
     }
     // Only bills that contain an exact given product line — used by the per-product price editor.
     if (req.query.product && req.query.product.trim()) {
-      filter['products.name'] = { $regex: `^${escapeRegex(req.query.product.trim())}$`, $options: 'i' };
+      filter['items.name'] = { $regex: `^${escapeRegex(req.query.product.trim())}$`, $options: 'i' };
     }
     if (req.query.startDate || req.query.endDate) {
-      filter['bill_details.date'] = {};
-      if (req.query.startDate) filter['bill_details.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
-      if (req.query.endDate) filter['bill_details.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
+      filter['billDetails.date'] = {};
+      if (req.query.startDate) filter['billDetails.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
+      if (req.query.endDate) filter['billDetails.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
     }
-    const sort = { 'bill_details.date': -1, createdAt: -1 };
+    const sort = { 'billDetails.date': -1, createdAt: -1 };
 
     // Paginated report mode — opt-in via ?page=, so existing callers that expect a
     // bare array (order entry's summary panel, print helpers) are unaffected.
@@ -151,7 +151,7 @@ exports.getSales = async (req, res) => {
 // not the whole product master.
 exports.getSoldProductNames = async (req, res) => {
   try {
-    const names = await Sale.distinct('products.name', { businessId: req.auth.businessId });
+    const names = await Sale.distinct('items.name', { businessId: req.auth.businessId });
     res.json(names.filter(Boolean).sort((a, b) => a.localeCompare(b)));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -166,16 +166,16 @@ exports.getSaleById = async (req, res) => {
 exports.updateSale = async (req, res) => {
   try {
     const data = prepareSale(req.body);
-    if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the sale.' });
+    if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the sale.' });
     const businessId = req.auth.businessId;
     const prev = await Sale.findOne({ _id: req.params.id, businessId });
     if (!prev) return res.status(404).json({ error: 'Sale not found.' });
     // Reverse the old bill's balance effect (from its original customer), then apply the new one.
-    await applyCustomerBalance(businessId, prev.customer?.name, -saleImpact(prev.bill_details));
-    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.bill_details));
-    data.bill_details.old_balance = bal.before;
-    data.bill_details.net_balance = bal.after;
-    data.bill_details.balance = bal.after;
+    await applyCustomerBalance(businessId, prev.customer?.name, -saleImpact(prev.billDetails));
+    const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.billDetails));
+    data.billDetails.openingBalance = bal.before;
+    data.billDetails.closingBalance = bal.after;
+    data.billDetails.balance = bal.after;
     const sale = await Sale.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(sale);
   }
@@ -187,7 +187,7 @@ exports.deleteSale = async (req, res) => {
     const businessId = req.auth.businessId;
     const sale = await Sale.findOneAndDelete({ _id: req.params.id, businessId });
     if (!sale) return res.status(404).json({ error: 'Sale not found.' });
-    await applyCustomerBalance(businessId, sale.customer?.name, -saleImpact(sale.bill_details)); // undo its balance effect
+    await applyCustomerBalance(businessId, sale.customer?.name, -saleImpact(sale.billDetails)); // undo its balance effect
     res.json({ message: 'Sale deleted successfully.' });
   }
   catch (error) { res.status(400).json({ error: error.message }); }

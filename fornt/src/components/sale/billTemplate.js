@@ -18,36 +18,36 @@ const money = (n) => Number(n || 0).toFixed(2);
 const has = (v) => v !== undefined && v !== null && v !== '';
 
 // One bill's HTML — works for a sale record or an order (purchase) record, since
-// both share the same bill_details / products shape.
+// both share the same billDetails / items shape.
 //   record   — the sale/order document
 //   shop     — the active invoice setting (letterhead), or {}
 //   customer — the matching customer record, for the live balance fallback, or null
 export const renderBillHtml = (record, shop = {}, customer = null) => {
-    const bill = record.bill_details || {};
-    const items = record.products || [];
+    const bill = record.billDetails || {};
+    const items = record.items || [];
     if (!items.length) return '';
 
     const productRows = items.map((item, i) => `
         <tr>
             <td class="c">${i + 1}</td>
-            <td class="r">${money(item.single_price)}</td>
+            <td class="r">${money(item.rate)}</td>
             <td>${item.name || ''}</td>
             <td class="r">${item.quantity ? money(item.quantity) : ''}</td>
             <td class="r">${item.bags || ''}</td>
-            <td class="r">${money(item.base_price)}</td>
+            <td class="r">${money(item.amount)}</td>
         </tr>`).join('');
 
     const totalKgs = items.reduce((t, p) => t + Number(p.quantity || 0), 0);
     const totalBags = items.reduce((t, p) => t + Number(p.bags || 0), 0);
-    const bagAmount = Number(bill.bagAmountTotal || 0);
-    const cooly = Number(bill.wageTotal || 0);
-    const commission = Number(bill.commissionTotal || 0);
+    const bagAmount = Number(bill.totalBagAmount || 0);
+    const cooly = Number(bill.totalWage || 0);
+    const commission = Number(bill.totalCommission || 0);
     const freight = Number(bill.freight || bill.transport || 0);
-    const billTotal = Number(bill.bill_amount || 0);
+    const billTotal = Number(bill.grandTotal || 0);
     const paid = Number(bill.debit || 0) + Number(bill.credit || 0);
     // Prefer the balance snapshot saved with the bill; fall back to the customer's live balance.
-    const openingBalance = has(bill.old_balance) ? Number(bill.old_balance) : Number(customer?.oldBalance ?? 0);
-    const closingBalance = has(bill.net_balance) ? Number(bill.net_balance) : openingBalance + billTotal - paid;
+    const openingBalance = has(bill.openingBalance) ? Number(bill.openingBalance) : Number(customer?.oldBalance ?? 0);
+    const closingBalance = has(bill.closingBalance) ? Number(bill.closingBalance) : openingBalance + billTotal - paid;
 
     const chargeRow = (label, value) => (Number(value) ?
         `<tr><td colspan="4"></td><td class="r lbl">${label}</td><td class="r">${money(value)}</td></tr>` : '');
@@ -73,7 +73,7 @@ export const renderBillHtml = (record, shop = {}, customer = null) => {
                     <tr><td colspan="6" class="meta">
                         <div class="meta-row">
                             <div>To: <b>${record.customer?.name || ''}</b></div>
-                            <div>Dt: <b>${toDateInput(bill.date)}</b>&nbsp;&nbsp;&nbsp;No: <b>${bill.order_sno || ''}</b></div>
+                            <div>Dt: <b>${toDateInput(bill.date)}</b>&nbsp;&nbsp;&nbsp;No: <b>${bill.billNumber || ''}</b></div>
                         </div>
                     </td></tr>
                     <tr class="cols">

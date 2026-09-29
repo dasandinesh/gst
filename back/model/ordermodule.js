@@ -1,20 +1,20 @@
 const mongoose = require('mongoose');
 
-const productLineSchema = new mongoose.Schema({
+const orderItemSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   comment: { type: String, trim: true, default: '' },
-  tamil: { type: String, trim: true, default: '' }, // snapshot of the product's Tamil name at billing time.
+  tamilName: { type: String, trim: true, default: '' }, // snapshot of the product's Tamil name at billing time.
   quantity: { type: Number, default: 0, min: 0 }, // weight
   bags: { type: Number, default: 0, min: 0 },
-  scale: { type: String, trim: true, default: '' }, // unit (mixer/bag/box/…)
-  single_price: { type: Number, default: 0, min: 0 }, // rate
-  base_price: { type: Number, default: 0, min: 0 }, // amount = (weight || bags) * rate
+  unit: { type: String, trim: true, default: '' }, // mixer/bag/box/…
+  rate: { type: Number, default: 0, min: 0 },
+  amount: { type: Number, default: 0, min: 0 }, // (weight || bags) * rate
   bagRate: { type: Number, default: 0, min: 0 },
   bagAmount: { type: Number, default: 0, min: 0 }, // bags * bagRate
-  wage: { type: Number, default: 0, min: 0 }, // per-bag wage rate
-  wageAmount: { type: Number, default: 0, min: 0 }, // bags * wage
-  commission: { type: Number, default: 0, min: 0 }, // per-bag commission rate
-  commissionAmount: { type: Number, default: 0, min: 0 }, // bags * commission
+  wageRate: { type: Number, default: 0, min: 0 }, // per bag
+  wageAmount: { type: Number, default: 0, min: 0 }, // bags * wageRate
+  commissionRate: { type: Number, default: 0, min: 0 }, // per bag
+  commissionAmount: { type: Number, default: 0, min: 0 }, // bags * commissionRate
 }, { _id: true });
 
 const orderSchema = new mongoose.Schema({
@@ -22,30 +22,33 @@ const orderSchema = new mongoose.Schema({
   customer: {
     name: { type: String, required: [true, 'Customer name is required'], trim: true },
   },
-  bill_details: {
-    order_sno: { type: String, trim: true, default: '' }, // Bill No.
-    order_no: { type: String, trim: true, default: '' },
+  billDetails: {
+    billNumber: { type: String, trim: true, default: '' }, // Bill No.
+    orderNumber: { type: String, trim: true, default: '' },
     mainParty: { type: String, trim: true, default: '' },
     date: { type: Date, default: Date.now },
-    bill_date: { type: Date },
-    total_quantity: { type: Number, default: 0 },
-    bag_quantity: { type: Number, default: 0 },
+    billDate: { type: Date },
+    totalQuantity: { type: Number, default: 0 },
+    totalBags: { type: Number, default: 0 },
     weight: { type: Number, default: 0 },
     subtotal: { type: Number, default: 0 }, // sum of line amounts
-    bagAmountTotal: { type: Number, default: 0 },
-    wageTotal: { type: Number, default: 0 },
-    commissionTotal: { type: Number, default: 0 },
+    totalBagAmount: { type: Number, default: 0 },
+    totalWage: { type: Number, default: 0 },
+    totalCommission: { type: Number, default: 0 },
     freight: { type: Number, default: 0 }, // manual header-level charge
-    bill_amount: { type: Number, default: 0 }, // Grand Total = subtotal + bagAmountTotal + wageTotal + commissionTotal + freight
+    grandTotal: { type: Number, default: 0 }, // subtotal + totalBagAmount + totalWage + totalCommission + freight
     balance: { type: Number, default: 0 }, // customer's balance snapshot at billing time (display only, not adjusted here)
     debit: { type: Number, default: 0 }, // Debit (Paymt)
     credit: { type: Number, default: 0 }, // Credit (Cash)
-    remark: { type: String, trim: true, default: '' },
+    notes: { type: String, trim: true, default: '' },
     billed: { type: Boolean, default: false }, // Confirm
   },
-  products: { type: [productLineSchema], default: [] },
+  items: { type: [orderItemSchema], default: [] },
 }, { timestamps: true });
 
-orderSchema.index({ 'bill_details.date': -1, 'bill_details.order_sno': 1 });
+orderSchema.index({ 'billDetails.date': -1, 'billDetails.billNumber': 1 });
 
-module.exports = mongoose.model('Order', orderSchema);
+const OrderModel = mongoose.model('Order', orderSchema);
+OrderModel.orderItemSchema = orderItemSchema;
+
+module.exports = OrderModel;

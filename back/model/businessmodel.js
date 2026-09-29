@@ -13,6 +13,27 @@ const businessSchema = new mongoose.Schema({
   district: { type: String },
   state: { type: String },
   pincode: { type: String },
+  // Screen preferences (Master → Entry Settings): which optional sections an
+  // entry page shows. Everything is on by default.
+  preferences: {
+    gstBillEntry: {
+      showBillList: { type: Boolean, default: true },
+      showReferences: { type: Boolean, default: true },
+      showTransport: { type: Boolean, default: true },
+      showPayment: { type: Boolean, default: true },
+      showRemark: { type: Boolean, default: true },
+    },
+    dcEntry: {
+      showList: { type: Boolean, default: true },
+      showTransport: { type: Boolean, default: true },
+      showRemark: { type: Boolean, default: true },
+    },
+    buyerPoEntry: {
+      showList: { type: Boolean, default: true },
+      showPaymentTerms: { type: Boolean, default: true },
+      showRemark: { type: Boolean, default: true },
+    },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Business', businessSchema);

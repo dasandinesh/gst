@@ -27,12 +27,12 @@ const emptyProduct = {
     comment: "",
     quantity: "",
     bags: "",
-    scale: "mixters",
-    single_price: "",
-    base_price: "",
+    unit: "mixters",
+    rate: "",
+    amount: "",
     bagRate: "",
-    wage: "",
-    commission: "",
+    wageRate: "",
+    commissionRate: "",
 };
 
 const OrderEntryMobile = () => {
@@ -89,31 +89,31 @@ const OrderEntryMobile = () => {
     const { register, control, handleSubmit, setValue, reset, getValues, watch } = useForm({
         defaultValues: {
             customer: { name: "" },
-            bill_details: {
-                order_sno: "",
+            billDetails: {
+                billNumber: "",
                 date: todayString(),
-                total_quantity: "",
-                bag_quantity: "",
+                totalQuantity: "",
+                totalBags: "",
                 weight: "",
                 billed: false,
             },
-            products: [],
+            items: [],
         },
     });
     const customerNameRegistration = register("customer.name", { required: "Customer name is required." });
-    const { fields, append, remove } = useFieldArray({ control, name: "products" });
+    const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
     const handleAddProduct = () => {
         if (!productExists(product.name)) {
             setProductWarning('This product is not in the list. Please add the product first.');
             return;
         }
-        if (!product.name || (!product.quantity && !product.bags) || !product.scale || !product.single_price) {
+        if (!product.name || (!product.quantity && !product.bags) || !product.unit || !product.rate) {
             alert("Please fill in the product details before adding (quantity or bags is enough).");
             return;
         }
-        const basePrice = Number(product.quantity) * Number(product.single_price);
-        append({ ...product, base_price: basePrice });
+        const basePrice = Number(product.quantity) * Number(product.rate);
+        append({ ...product, amount: basePrice });
         setProduct(emptyProduct);
         calculateTotals();
         // Deferred a tick so focus lands after the product-list re-render settles.
@@ -121,19 +121,19 @@ const OrderEntryMobile = () => {
     };
 
     const calculateTotals = () => {
-        const products = getValues("products");
+        const products = getValues("items");
         const totalQuantity = products.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
         const totalBagQuantity = products.reduce((sum, p) => sum + Number(p.bags || 0), 0);
-        const totalWeight = products.reduce((sum, p) => sum + (Number(p.quantity || 0) * Number(p.scale || 0)), 0);
-        setValue('bill_details.total_quantity', totalQuantity);
-        setValue('bill_details.bag_quantity', totalBagQuantity);
-        setValue('bill_details.weight', totalWeight);
+        const totalWeight = products.reduce((sum, p) => sum + (Number(p.quantity || 0) * Number(p.unit || 0)), 0);
+        setValue('billDetails.totalQuantity', totalQuantity);
+        setValue('billDetails.totalBags', totalBagQuantity);
+        setValue('billDetails.weight', totalWeight);
     };
 
     const blankForm = () => ({
         customer: { name: "" },
-        bill_details: { order_sno: "", date: todayString(), total_quantity: "", bag_quantity: "", weight: "", billed: false },
-        products: [],
+        billDetails: { billNumber: "", date: todayString(), totalQuantity: "", totalBags: "", weight: "", billed: false },
+        items: [],
     });
 
     const handleNewOrder = () => {
@@ -147,24 +147,24 @@ const OrderEntryMobile = () => {
 
     const handleEdit = (order) => {
         setEditingId(order._id);
-        setIsSubscribed(Boolean(order.bill_details?.billed));
+        setIsSubscribed(Boolean(order.billDetails?.billed));
         setSaveStatus('');
         setCustomerWarning('');
         setProductWarning('');
         reset({
             customer: { name: order.customer?.name || "" },
-            bill_details: { ...order.bill_details, date: toDateInput(order.bill_details?.date) },
-            products: (order.products || []).map((item) => ({
+            billDetails: { ...order.billDetails, date: toDateInput(order.billDetails?.date) },
+            items: (order.items || []).map((item) => ({
                 name: item.name || "",
                 comment: item.comment || "",
                 quantity: item.quantity ?? "",
                 bags: item.bags ?? "",
-                scale: item.scale || "",
-                single_price: item.single_price ?? "",
-                base_price: item.base_price ?? "",
+                unit: item.unit || "",
+                rate: item.rate ?? "",
+                amount: item.amount ?? "",
                 bagRate: item.bagRate ?? "",
-                wage: item.wage ?? "",
-                commission: item.commission ?? "",
+                wageRate: item.wageRate ?? "",
+                commissionRate: item.commissionRate ?? "",
             })),
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -179,12 +179,12 @@ const OrderEntryMobile = () => {
         );
         if (match) {
             handleEdit(match);
-            setSaveStatus(`Existing order ${match.bill_details?.order_sno || ''} loaded for editing.`);
+            setSaveStatus(`Existing order ${match.billDetails?.billNumber || ''} loaded for editing.`);
         }
     };
 
     const handleDeleteOrder = async (order) => {
-        if (!window.confirm(`Delete order ${order.bill_details?.order_sno || ''}? This cannot be undone.`)) return;
+        if (!window.confirm(`Delete order ${order.billDetails?.billNumber || ''}? This cannot be undone.`)) return;
         try {
             await axios.delete(`/api/orders/${order._id}`);
             if (editingId === order._id) handleNewOrder();
@@ -200,17 +200,17 @@ const OrderEntryMobile = () => {
             setCustomerWarning('This customer is not in the list. Please add the customer first.');
             return;
         }
-        const unknownProduct = (data.products || []).find((item) => item.name && !productExists(item.name));
+        const unknownProduct = (data.items || []).find((item) => item.name && !productExists(item.name));
         if (unknownProduct) {
             setSaveStatus(`Product "${unknownProduct.name}" is not in the list. Please add it first.`);
             return;
         }
-        const payload = { ...data, bill_details: { ...data.bill_details, billed: isSubscribed } };
+        const payload = { ...data, billDetails: { ...data.billDetails, billed: isSubscribed } };
         try {
             const response = editingId
                 ? await axios.put(`/api/orders/${editingId}`, payload)
                 : await axios.post('/api/orders', payload);
-            const sno = response.data.bill_details?.order_sno || '';
+            const sno = response.data.billDetails?.billNumber || '';
             setSaveStatus(`Order ${sno} ${editingId ? 'updated' : 'saved'} successfully.`);
             setEditingId(null);
             setIsSubscribed(false);
@@ -246,10 +246,10 @@ const OrderEntryMobile = () => {
         setProduct({
             ...product,
             name: selectedProduct.name,
-            single_price: selectedProduct.Price ?? "",
+            rate: selectedProduct.Price ?? "",
             bagRate: selectedProduct.pags ?? "",
-            wage: selectedProduct.Wages ?? "",
-            commission: selectedProduct.commission ?? "",
+            wageRate: selectedProduct.Wages ?? "",
+            commissionRate: selectedProduct.commission ?? "",
         });
         setProductSuggestOpen(false);
     };
@@ -298,11 +298,11 @@ const OrderEntryMobile = () => {
                     <div className="om-field-row">
                         <label className="om-field">
                             <span>Bill date</span>
-                            <input type="date" className="om-input" {...register("bill_details.date")} />
+                            <input type="date" className="om-input" {...register("billDetails.date")} />
                         </label>
                         <label className="om-field">
                             <span>Bill no.</span>
-                            <input type="text" className="om-input" placeholder="Auto" {...register("bill_details.order_sno")} />
+                            <input type="text" className="om-input" placeholder="Auto" {...register("billDetails.billNumber")} />
                         </label>
                     </div>
 
@@ -325,10 +325,10 @@ const OrderEntryMobile = () => {
                                     setProduct({
                                         ...product,
                                         name: val,
-                                        single_price: selectedProduct ? selectedProduct.Price : "",
+                                        rate: selectedProduct ? selectedProduct.Price : "",
                                         bagRate: selectedProduct ? (selectedProduct.pags ?? "") : "",
-                                        wage: selectedProduct ? (selectedProduct.Wages ?? "") : "",
-                                        commission: selectedProduct ? (selectedProduct.commission ?? "") : "",
+                                        wageRate: selectedProduct ? (selectedProduct.Wages ?? "") : "",
+                                        commissionRate: selectedProduct ? (selectedProduct.commission ?? "") : "",
                                     });
                                     setProductSuggestOpen(true);
                                 }}
@@ -380,7 +380,7 @@ const OrderEntryMobile = () => {
                                     setProduct({
                                         ...product,
                                         bags,
-                                        scale: bags && selectedProduct?.Unit ? selectedProduct.Unit : product.scale,
+                                        unit: bags && selectedProduct?.Unit ? selectedProduct.Unit : product.unit,
                                     });
                                 }}
                             />
@@ -393,8 +393,8 @@ const OrderEntryMobile = () => {
                                 type="text"
                                 className="om-input"
                                 list="om-scale-list"
-                                value={product.scale}
-                                onChange={(e) => setProduct({ ...product, scale: e.target.value })}
+                                value={product.unit}
+                                onChange={(e) => setProduct({ ...product, unit: e.target.value })}
                             />
                         </label>
                         <label className="om-field">
@@ -402,9 +402,9 @@ const OrderEntryMobile = () => {
                             <input
                                 type="number"
                                 className="om-input"
-                                value={product.single_price}
+                                value={product.rate}
                                 placeholder="Price"
-                                onChange={(e) => setProduct({ ...product, single_price: e.target.value })}
+                                onChange={(e) => setProduct({ ...product, rate: e.target.value })}
                             />
                         </label>
                     </div>
@@ -427,14 +427,14 @@ const OrderEntryMobile = () => {
                                 {fields.map((item, index) => (
                                     <div className="om-product-row" key={item.id}>
                                         <div className="om-product-row-top">
-                                            <input className="om-input om-product-name" type="text" {...register(`products.${index}.name`)} list="om-product-list" />
+                                            <input className="om-input om-product-name" type="text" {...register(`items.${index}.name`)} list="om-product-list" />
                                             <button type="button" className="om-remove" onClick={() => { remove(index); calculateTotals(); }} aria-label="Remove">✕</button>
                                         </div>
                                         <div className="om-product-row-grid">
-                                            <label><span>Qty</span><input className="om-input" type="number" {...register(`products.${index}.quantity`)} /></label>
-                                            <label><span>Bags</span><input className="om-input" type="number" {...register(`products.${index}.bags`)} /></label>
-                                            <label><span>Price</span><input className="om-input" type="number" step="0.01" {...register(`products.${index}.single_price`)} /></label>
-                                            <label><span>Amount</span><input className="om-input" type="number" step="0.01" {...register(`products.${index}.base_price`)} /></label>
+                                            <label><span>Qty</span><input className="om-input" type="number" {...register(`items.${index}.quantity`)} /></label>
+                                            <label><span>Bags</span><input className="om-input" type="number" {...register(`items.${index}.bags`)} /></label>
+                                            <label><span>Price</span><input className="om-input" type="number" step="0.01" {...register(`items.${index}.rate`)} /></label>
+                                            <label><span>Amount</span><input className="om-input" type="number" step="0.01" {...register(`items.${index}.amount`)} /></label>
                                         </div>
                                     </div>
                                 ))}
@@ -444,12 +444,12 @@ const OrderEntryMobile = () => {
 
                     <div className="om-section-divider" />
                     <div className="om-totals">
-                        <div><span>Total quantity</span><strong className="om-total-value">{watch('bill_details.total_quantity') || 0}</strong></div>
-                        <div><span>Total bags</span><strong className="om-total-value">{watch('bill_details.bag_quantity') || 0}</strong></div>
-                        <div><span>Total weight</span><strong className="om-total-value">{watch('bill_details.weight') || 0}</strong></div>
+                        <div><span>Total quantity</span><strong className="om-total-value">{watch('billDetails.totalQuantity') || 0}</strong></div>
+                        <div><span>Total bags</span><strong className="om-total-value">{watch('billDetails.totalBags') || 0}</strong></div>
+                        <div><span>Total weight</span><strong className="om-total-value">{watch('billDetails.weight') || 0}</strong></div>
                     </div>
 
-                    {editingId && <p className="om-status" role="status">Editing order {getValues('bill_details.order_sno') || editingId}.</p>}
+                    {editingId && <p className="om-status" role="status">Editing order {getValues('billDetails.billNumber') || editingId}.</p>}
                     {saveStatus && <p className="om-status" role="alert">{saveStatus}</p>}
 
                     <div className="om-actions om-actions-inline">
@@ -484,13 +484,13 @@ const OrderEntryMobile = () => {
                             <div className="om-order-card-top">
                                 <div>
                                     <div className="om-order-card-title">{order.customer?.name || '—'}</div>
-                                    <div className="om-order-card-sub">Bill {order.bill_details?.order_sno || '—'}</div>
+                                    <div className="om-order-card-sub">Bill {order.billDetails?.billNumber || '—'}</div>
                                 </div>
-                                <span className={`om-badge ${order.bill_details?.billed ? 'is-billed' : 'is-pending'}`}>
-                                    {order.bill_details?.billed ? 'Billed' : 'Pending'}
+                                <span className={`om-badge ${order.billDetails?.billed ? 'is-billed' : 'is-pending'}`}>
+                                    {order.billDetails?.billed ? 'Billed' : 'Pending'}
                                 </span>
                             </div>
-                            <div className="om-order-card-amount">₹{money(order.bill_details?.bill_amount)}</div>
+                            <div className="om-order-card-amount">₹{money(order.billDetails?.grandTotal)}</div>
                             <div className="om-order-card-actions">
                                 <button type="button" className="om-btn" onClick={() => setViewOrder(order)}>View</button>
                                 <button type="button" className="om-btn" onClick={() => handleEdit(order)}>Edit</button>
@@ -509,23 +509,23 @@ const OrderEntryMobile = () => {
                             <button type="button" className="om-remove" onClick={() => setViewOrder(null)}>✕</button>
                         </div>
                         <div className="om-modal-meta">
-                            <div><span>Bill no.</span><strong>{viewOrder.bill_details?.order_sno || '—'}</strong></div>
+                            <div><span>Bill no.</span><strong>{viewOrder.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewOrder.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewOrder.bill_details?.date)}</strong></div>
-                            <div><span>Status</span><strong>{viewOrder.bill_details?.billed ? 'Billed' : 'Pending'}</strong></div>
+                            <div><span>Date</span><strong>{toDateInput(viewOrder.billDetails?.date)}</strong></div>
+                            <div><span>Status</span><strong>{viewOrder.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <div className="om-product-list">
-                            {(viewOrder.products || []).map((item, index) => (
+                            {(viewOrder.items || []).map((item, index) => (
                                 <div className="om-product-row" key={index}>
                                     <div className="om-product-row-top"><strong>{item.name}</strong></div>
                                     <div className="om-order-card-sub">
-                                        Qty {item.quantity || 0} · Bags {item.bags || 0} · {item.scale || '—'} · ₹{money(item.single_price)} = ₹{money(item.base_price)}
+                                        Qty {item.quantity || 0} · Bags {item.bags || 0} · {item.unit || '—'} · ₹{money(item.rate)} = ₹{money(item.amount)}
                                     </div>
                                 </div>
                             ))}
                         </div>
                         <div className="om-modal-meta">
-                            <div><span>Bill amount</span><strong>₹{money(viewOrder.bill_details?.bill_amount)}</strong></div>
+                            <div><span>Bill amount</span><strong>₹{money(viewOrder.billDetails?.grandTotal)}</strong></div>
                         </div>
                         <div className="om-actions">
                             <button type="button" className="om-btn om-btn-primary om-btn-block" onClick={() => { handleEdit(viewOrder); setViewOrder(null); }}>Edit this order</button>

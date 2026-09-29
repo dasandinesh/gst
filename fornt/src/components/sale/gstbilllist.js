@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchJson } from '../../api';
 import './gstbillentry.css';
 import './gstbilllist.css';
 import { buildGstBillDocumentHtml, PAPER_WINDOW } from './gstBillTemplate';
+import { formatAddress, hasAddress } from '../common/shippingAddress';
+import { transportRows } from '../common/transportDetails';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 const displayDate = (value) => (value ? new Date(value).toLocaleDateString() : '—');
@@ -13,6 +16,7 @@ const emptyFilters = { q: '', startDate: '', endDate: '', taxType: '' };
 // Dedicated report page for GST bills: free-text search, date range and tax-type
 // filters, server-side pagination, plus the same view/print modal as the entry page.
 const GstBillList = () => {
+  const navigate = useNavigate();
   const [customerList, setCustomerList] = useState([]);
   const [invoiceSetting, setInvoiceSetting] = useState(null);
 
@@ -43,7 +47,10 @@ const GstBillList = () => {
     params.set('limit', PAGE_SIZE);
     try {
       const result = await fetchJson(`/api/gst-sales?${params.toString()}`);
-      setBills(result.data || []);
+      const list = result.data || [];
+      setBills(list);
+      // Keep the open bill if it's still in the list; otherwise open the latest one (list is newest first).
+      setViewBill((current) => list.find((b) => b._id === current?._id) || list[0] || null);
       setTotal(result.total || 0);
       setPages(result.pages || 1);
     } catch (error) {
@@ -66,6 +73,14 @@ const GstBillList = () => {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [showViewOptions]);
 
+  // Escape closes the right-hand bill panel.
+  useEffect(() => {
+    if (!viewBill) return undefined;
+    const handleKey = (e) => { if (e.key === 'Escape') setViewBill(null); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [viewBill]);
+
   const update = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
 
   const submitFilter = (event) => {
@@ -87,7 +102,7 @@ const GstBillList = () => {
     loadBills(filters, next);
   };
 
-  const pageTotal = bills.reduce((sum, bill) => sum + Number(bill.bill_details?.billAmount || 0), 0);
+  const pageTotal = bills.reduce((sum, bill) => sum + Number(bill.billDetails?.grandTotal || 0), 0);
 
   // Layout/styling lives in ./gstBillTemplate.js — this just opens the window
   // synchronously (so popup blockers don't catch it) and fills it in once the
@@ -113,12 +128,11 @@ const GstBillList = () => {
 
   return (
     <main className="gst-bill-page">
+    <div className={`gst-bill-list-split${viewBill ? ' has-detail' : ''}`}>
       <section className="gst-bill-card gst-bill-list-page-card">
         <header className="gst-bill-list-header">
           <div>
-            <p className="gst-bill-list-eyebrow">GST report</p>
-            <h1>GST Bills</h1>
-            <p>Search every GST bill by customer or bill number, filter by date and tax type.</p>
+            <h1 style={{ textAlign: 'center' }}>GST Bills List</h1>
           </div>
           <button type="button" className="gst-secondary-button" onClick={() => loadBills()} disabled={loading}>
             {loading ? 'Loading…' : 'Refresh'}
@@ -159,14 +173,15 @@ const GstBillList = () => {
               ) : bills.length === 0 ? (
                 <tr><td colSpan="8" className="gst-table-state">No GST bills match this filter.</td></tr>
               ) : bills.map((bill) => (
-                <tr key={bill._id}>
-                  <td className="gst-row-name">{bill.bill_details?.billNumber}</td>
-                  <td>{displayDate(bill.bill_details?.date)}</td>
+                // Clicking anywhere on the row opens the bill in the right-hand panel.
+                <tr key={bill._id} className={`gst-bill-list-row${viewBill?._id === bill._id ? ' is-selected' : ''}`} onClick={() => setViewBill(bill)}>
+                  <td className="gst-row-name">{bill.billDetails?.invoiceNumber}</td>
+                  <td>{displayDate(bill.billDetails?.date)}</td>
                   <td>{bill.customer?.name}</td>
-                  <td>{bill.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST+SGST'}</td>
-                  <td>{money(bill.bill_details?.billAmount)}</td>
-                  <td>{money(bill.bill_details?.cash)}</td>
-                  <td>{money(bill.bill_details?.credit)}</td>
+                  <td>{bill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST+SGST'}</td>
+                  <td>{money(bill.billDetails?.grandTotal)}</td>
+                  <td>{money(bill.billDetails?.cash)}</td>
+                  <td>{money(bill.billDetails?.credit)}</td>
                   <td className="gst-row-actions">
                     <button type="button" className="gst-view-button" onClick={() => setViewBill(bill)}>View</button>
                   </td>
@@ -196,11 +211,11 @@ const GstBillList = () => {
         </div>
       </section>
 
+      {/* Right-hand detail panel for the bill clicked in the list. */}
       {viewBill && (
-        <div className="gst-view-overlay" onClick={() => setViewBill(null)}>
-          <div className="gst-view-modal" onClick={(e) => e.stopPropagation()}>
+          <aside className="gst-bill-detail-panel" aria-label={`GST bill ${viewBill.billDetails?.invoiceNumber || ''}`}>
             <div className="gst-view-header">
-              <h3>GST bill {viewBill.bill_details?.billNumber}</h3>
+              <h3>GST bill {viewBill.billDetails?.invoiceNumber}</h3>
               <div className="gst-view-options" ref={viewOptionsRef}>
                 <button
                   type="button"
@@ -227,38 +242,51 @@ const GstBillList = () => {
               </div>
               <button type="button" onClick={() => setViewBill(null)}>✕</button>
             </div>
-            <div className="gst-view-meta">
-              <div><span>Customer</span><strong>{viewBill.customer?.name}</strong></div>
-              <div><span>Date</span><strong>{displayDate(viewBill.bill_details?.date)}</strong></div>
-              <div><span>Tax type</span><strong>{viewBill.bill_details?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
-              <div><span>Place of supply</span><strong>{viewBill.bill_details?.placeOfSupply || '—'}</strong></div>
+            {/* Narrow preview: everything stacked in one column. */}
+            <div className="gst-preview-total">
+              <span>Grand total</span>
+              <strong>{money(viewBill.billDetails?.grandTotal)}</strong>
             </div>
-            <table className="gst-view-table">
-              <thead><tr><th>Product</th><th>HSN</th><th>Qty</th><th>Price</th><th>GST%</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total</th></tr></thead>
-              <tbody>
-                {(viewBill.products || []).map((p, index) => (
-                  <tr key={index}><td>{p.name}</td><td>{p.hsnCode || '—'}</td><td>{p.quantity} {p.unit}</td><td>{money(p.price)}</td><td>{p.gstRate}%</td><td>{money(p.taxableValue)}</td><td>{money(p.cgstAmount)}</td><td>{money(p.sgstAmount)}</td><td>{money(p.igstAmount)}</td><td>{money(p.total)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="gst-view-totals">
-              <div><span>Subtotal</span><strong>{money(viewBill.bill_details?.subtotal)}</strong></div>
-              <div><span>Total CGST</span><strong>{money(viewBill.bill_details?.totalCgst)}</strong></div>
-              <div><span>Total SGST</span><strong>{money(viewBill.bill_details?.totalSgst)}</strong></div>
-              <div><span>Total IGST</span><strong>{money(viewBill.bill_details?.totalIgst)}</strong></div>
-              <div><span>Round off</span><strong>{money(viewBill.bill_details?.roundOff)}</strong></div>
-              <div><span>Grand total</span><strong>{money(viewBill.bill_details?.billAmount)}</strong></div>
-              <div><span>Cash</span><strong>{money(viewBill.bill_details?.cash)}</strong></div>
-              <div><span>Credit</span><strong>{money(viewBill.bill_details?.credit)}</strong></div>
-            </div>
+            <dl className="gst-preview-rows">
+              <dt>Customer</dt><dd>{viewBill.customer?.name}</dd>
+              <dt>Date</dt><dd>{displayDate(viewBill.billDetails?.date)}</dd>
+              <dt>Tax type</dt><dd>{viewBill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</dd>
+              <dt>Place of supply</dt><dd>{viewBill.billDetails?.placeOfSupply || '—'}</dd>
+              {hasAddress(viewBill.shippingAddress) && viewBill.shippingAddress.source !== 'billing' && <><dt>Ship to</dt><dd>{viewBill.shippingAddress.contactName ? `${viewBill.shippingAddress.contactName}, ` : ''}{formatAddress(viewBill.shippingAddress)}</dd></>}
+              {viewBill.billDetails?.deliveryChallanNumber && <><dt>DC no. / date</dt><dd>{viewBill.billDetails.deliveryChallanNumber}{viewBill.billDetails.deliveryChallanDate ? ` / ${displayDate(viewBill.billDetails.deliveryChallanDate)}` : ''}</dd></>}
+              {viewBill.billDetails?.purchaseOrderNumber && <><dt>Buyer's PO / date</dt><dd>{viewBill.billDetails.purchaseOrderNumber}{viewBill.billDetails.purchaseOrderDate ? ` / ${displayDate(viewBill.billDetails.purchaseOrderDate)}` : ''}</dd></>}
+              {transportRows(viewBill.billDetails?.transport).map(([label, value]) => <React.Fragment key={label}><dt>{label}</dt><dd>{value}</dd></React.Fragment>)}
+            </dl>
+
+            <p className="gst-preview-heading">Items ({(viewBill.items || []).length})</p>
+            <ul className="gst-preview-items">
+              {(viewBill.items || []).map((p, index) => (
+                <li key={index}>
+                  <div className="gst-preview-item-top"><span>{p.name}</span><strong>{money(p.amount)}</strong></div>
+                  <small>{p.quantity} {p.unit} × {money(p.rate)} · GST {p.gstRate}%{p.hsnCode ? ` · HSN ${p.hsnCode}` : ''}</small>
+                </li>
+              ))}
+            </ul>
+
+            <dl className="gst-preview-rows gst-preview-sums">
+              <dt>Subtotal</dt><dd>{money(viewBill.billDetails?.totalTaxableValue)}</dd>
+              {viewBill.billDetails?.taxType === 'IGST'
+                ? <><dt>IGST</dt><dd>{money(viewBill.billDetails?.totalIgst)}</dd></>
+                : <><dt>CGST</dt><dd>{money(viewBill.billDetails?.totalCgst)}</dd><dt>SGST</dt><dd>{money(viewBill.billDetails?.totalSgst)}</dd></>}
+              <dt>Round off</dt><dd>{money(viewBill.billDetails?.roundOff)}</dd>
+              <dt className="gst-preview-grand">Grand total</dt><dd className="gst-preview-grand">{money(viewBill.billDetails?.grandTotal)}</dd>
+              <dt>Cash</dt><dd>{money(viewBill.billDetails?.cash)}</dd>
+              <dt>Credit</dt><dd>{money(viewBill.billDetails?.credit)}</dd>
+            </dl>
             <div className="gst-view-actions">
               <button type="button" onClick={() => printBill(viewBill, 'A4')}>Print A4</button>
               <button type="button" onClick={() => printBill(viewBill, 'A5')}>Print A5</button>
+              <button type="button" onClick={() => navigate('/gst-billing', { state: { editBill: viewBill } })}>✎ Edit bill</button>
               <button type="button" onClick={() => setViewBill(null)}>Close</button>
             </div>
-          </div>
-        </div>
+          </aside>
       )}
+    </div>
     </main>
   );
 };

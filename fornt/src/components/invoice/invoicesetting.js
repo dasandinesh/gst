@@ -9,8 +9,10 @@ import '../../components/cutomer/customerlist.css';
 //   - no setting yet  -> show the create form
 //   - one setting      -> show it for editing, with a delete option
 //   - more than one    -> warn and let the user delete extras until only one remains
+const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
 const defaults = {
-  name: '', phone: '', phone_2: '', door: '', street: '', area: '',
+  name: '', gstin: '', phone: '', phone_2: '', door: '', street: '', area: '',
   district: '', state: '', pincode: '', header: '', fooder: '',
 };
 
@@ -170,6 +172,21 @@ const InvoiceSetting = () => {
                   <span>Shop / business name <b>*</b></span>
                   <input type="text" {...register('name', { required: 'Shop name is required.' })} />
                   {errors.name && <small className="field-error">{errors.name.message}</small>}
+                </label>
+                <label className="customer-field">
+                  <span>GSTIN</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 33ABCDE1234F1Z5"
+                    maxLength={15}
+                    style={{ textTransform: 'uppercase' }}
+                    {...register('gstin', {
+                      setValueAs: (v) => String(v || '').trim().toUpperCase(),
+                      validate: (v) => !v || GSTIN_PATTERN.test(v) || 'Not a valid GSTIN — 15 characters, like 33ABCDE1234F1Z5.',
+                    })}
+                  />
+                  {errors.gstin && <small className="field-error">{errors.gstin.message}</small>}
+                  <small>Printed on bills and used for GSTR-1. You can also manage it from Business Profile.</small>
                 </label>
                 <label className="customer-field"><span>Phone</span><input type="tel" {...register('phone')} /></label>
                 <label className="customer-field"><span>Phone 2</span><input type="tel" {...register('phone_2')} /></label>

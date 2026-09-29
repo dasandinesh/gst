@@ -24,7 +24,7 @@ const firstOfMonth = () => {
 const isLowStock = (product) =>
   Number(product.reorderLevel || 0) > 0 && Number(product.StockQunity || 0) <= Number(product.reorderLevel || 0);
 
-const sumBillAmount = (bills) => bills.reduce((sum, bill) => sum + Number(bill.bill_details?.billAmount || 0), 0);
+const sumGrandTotal = (bills) => bills.reduce((sum, bill) => sum + Number(bill.billDetails?.grandTotal || 0), 0);
 
 // state: 'pending' (gray, still checking) | 'ok' (green) | 'bad' (red)
 const StatusLight = ({ label, state, detail }) => (
@@ -98,9 +98,9 @@ const Dashboard = () => {
       const purchaseList = Array.isArray(purchases) ? purchases : purchases.data || [];
 
       setMetrics({
-        salesTotal: sumBillAmount(salesList),
+        salesTotal: sumGrandTotal(salesList),
         salesCount: salesList.length,
-        purchaseTotal: sumBillAmount(purchaseList),
+        purchaseTotal: sumGrandTotal(purchaseList),
         purchaseCount: purchaseList.length,
         receivables: customers.reduce((sum, c) => sum + Number(c.oldBalance || 0), 0),
         payables: suppliers.reduce((sum, s) => sum + Number(s.oldBalance || 0), 0),
@@ -235,10 +235,10 @@ const Dashboard = () => {
                     <tbody>
                       {metrics.recentBills.map((bill) => (
                         <tr key={bill._id}>
-                          <td>{bill.bill_details?.billNumber}</td>
-                          <td>{displayDate(bill.bill_details?.date)}</td>
+                          <td>{bill.billDetails?.invoiceNumber}</td>
+                          <td>{displayDate(bill.billDetails?.date)}</td>
                           <td>{bill.customer?.name}</td>
-                          <td>{money(bill.bill_details?.billAmount)}</td>
+                          <td>{money(bill.billDetails?.grandTotal)}</td>
                         </tr>
                       ))}
                     </tbody>

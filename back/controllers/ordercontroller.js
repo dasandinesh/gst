@@ -8,67 +8,67 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // items that are actually counted and handled in bags/boxes. A loose, weight-sold scale
 // like "mixters" never incurs them, even if a stray bag count was entered on that line.
 const BAG_SCALES = new Set(['bag', 'o bag', 'box', 'leaves']);
-const isBagScale = (scale) => BAG_SCALES.has((scale || '').trim().toLowerCase());
+const isBagScale = (unit) => BAG_SCALES.has((unit || '').trim().toLowerCase());
 
 const prepareOrder = (body = {}) => {
-  const products = Array.isArray(body.products) ? body.products.filter((item) => item && item.name).map((item) => {
+  const items = Array.isArray(body.items) ? body.items.filter((item) => item && item.name).map((item) => {
     const quantity = number(item.quantity);
     const bags = number(item.bags);
-    const single_price = number(item.single_price);
-    const scale = item.scale || '';
-    const bagBased = isBagScale(scale);
+    const rate = number(item.rate);
+    const unit = item.unit || '';
+    const bagBased = isBagScale(unit);
     const bagRate = number(item.bagRate);
-    const wage = number(item.wage);
-    const commission = number(item.commission);
+    const wageRate = number(item.wageRate);
+    const commissionRate = number(item.commissionRate);
     const billQty = quantity || bags; // weight-billed items use quantity; bag-billed items fall back to bag count.
     return {
       name: item.name,
       comment: item.comment || '',
-      tamil: item.tamil || '',
+      tamilName: item.tamilName || '',
       quantity,
       bags,
-      scale,
-      single_price,
-      base_price: billQty * single_price,
+      unit,
+      rate,
+      amount: billQty * rate,
       bagRate,
       bagAmount: bagBased ? bags * bagRate : 0,
-      wage,
-      wageAmount: bagBased ? bags * wage : 0,
-      commission,
-      commissionAmount: bagBased ? bags * commission : 0,
+      wageRate,
+      wageAmount: bagBased ? bags * wageRate : 0,
+      commissionRate,
+      commissionAmount: bagBased ? bags * commissionRate : 0,
     };
   }) : [];
 
-  const subtotal = products.reduce((total, item) => total + item.base_price, 0);
-  const bagAmountTotal = products.reduce((total, item) => total + item.bagAmount, 0);
-  const wageTotal = products.reduce((total, item) => total + item.wageAmount, 0);
-  const commissionTotal = products.reduce((total, item) => total + item.commissionAmount, 0);
-  const bill = body.bill_details || {};
+  const subtotal = items.reduce((total, item) => total + item.amount, 0);
+  const totalBagAmount = items.reduce((total, item) => total + item.bagAmount, 0);
+  const totalWage = items.reduce((total, item) => total + item.wageAmount, 0);
+  const totalCommission = items.reduce((total, item) => total + item.commissionAmount, 0);
+  const bill = body.billDetails || {};
   const freight = number(bill.freight);
-  const grandTotal = subtotal + bagAmountTotal + wageTotal + commissionTotal + freight;
+  const grandTotal = subtotal + totalBagAmount + totalWage + totalCommission + freight;
 
   return {
     customer: { name: body.customer?.name ?? body.customerName },
-    products,
-    bill_details: {
-      order_sno: bill.order_sno || '',
-      order_no: bill.order_no || '',
+    items,
+    billDetails: {
+      billNumber: bill.billNumber || '',
+      orderNumber: bill.orderNumber || '',
       mainParty: bill.mainParty || '',
       date: bill.date || new Date(),
-      bill_date: bill.bill_date || undefined,
-      total_quantity: products.reduce((total, item) => total + item.quantity, 0),
-      bag_quantity: products.reduce((total, item) => total + item.bags, 0),
+      billDate: bill.billDate || undefined,
+      totalQuantity: items.reduce((total, item) => total + item.quantity, 0),
+      totalBags: items.reduce((total, item) => total + item.bags, 0),
       weight: number(bill.weight),
       subtotal,
-      bagAmountTotal,
-      wageTotal,
-      commissionTotal,
+      totalBagAmount,
+      totalWage,
+      totalCommission,
       freight,
-      bill_amount: grandTotal,
+      grandTotal,
       balance: number(bill.balance),
       debit: number(bill.debit),
       credit: number(bill.credit),
-      remark: bill.remark || '',
+      notes: bill.notes || '',
       billed: Boolean(bill.billed),
     },
   };
@@ -77,11 +77,11 @@ const prepareOrder = (body = {}) => {
 exports.createOrder = async (req, res) => {
   try {
     const data = prepareOrder(req.body);
-    if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the order.' });
+    if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the order.' });
     data.businessId = req.auth.businessId;
     // Auto-assign the next bill serial number when the user didn't type one.
-    if (!data.bill_details.order_sno) {
-      data.bill_details.order_sno = String(await Counter.next(`${req.auth.businessId}:order`));
+    if (!data.billDetails.billNumber) {
+      data.billDetails.billNumber = String(await Counter.next(`${req.auth.businessId}:order`));
     }
     const order = await Order.create(data);
     res.status(201).json(order);
@@ -94,14 +94,14 @@ exports.getOrders = async (req, res) => {
     if (req.query.customer) filter['customer.name'] = { $regex: req.query.customer.trim(), $options: 'i' };
     // Only bills that contain an exact given product line — used by the per-product price editor.
     if (req.query.product && req.query.product.trim()) {
-      filter['products.name'] = { $regex: `^${escapeRegex(req.query.product.trim())}$`, $options: 'i' };
+      filter['items.name'] = { $regex: `^${escapeRegex(req.query.product.trim())}$`, $options: 'i' };
     }
     if (req.query.startDate || req.query.endDate) {
-      filter['bill_details.date'] = {};
-      if (req.query.startDate) filter['bill_details.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
-      if (req.query.endDate) filter['bill_details.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
+      filter['billDetails.date'] = {};
+      if (req.query.startDate) filter['billDetails.date'].$gte = new Date(`${req.query.startDate}T00:00:00.000`);
+      if (req.query.endDate) filter['billDetails.date'].$lte = new Date(`${req.query.endDate}T23:59:59.999`);
     }
-    res.json(await Order.find(filter).sort({ 'bill_details.date': -1, createdAt: -1 }));
+    res.json(await Order.find(filter).sort({ 'billDetails.date': -1, createdAt: -1 }));
   }
   catch (error) { res.status(500).json({ error: error.message }); }
 };
@@ -110,7 +110,7 @@ exports.getOrders = async (req, res) => {
 // price editor so its datalist only offers products someone has actually ordered.
 exports.getOrderedProductNames = async (req, res) => {
   try {
-    const names = await Order.distinct('products.name', { businessId: req.auth.businessId });
+    const names = await Order.distinct('items.name', { businessId: req.auth.businessId });
     res.json(names.filter(Boolean).sort((a, b) => a.localeCompare(b)));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -123,7 +123,7 @@ exports.getOrderById = async (req, res) => {
 };
 
 exports.updateOrder = async (req, res) => {
-  try { const data = prepareOrder(req.body); if (!data.products.length) return res.status(400).json({ error: 'Add at least one product before saving the order.' }); const order = await Order.findOneAndUpdate({ _id: req.params.id, businessId: req.auth.businessId }, data, { new: true, runValidators: true }); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json(order); }
+  try { const data = prepareOrder(req.body); if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the order.' }); const order = await Order.findOneAndUpdate({ _id: req.params.id, businessId: req.auth.businessId }, data, { new: true, runValidators: true }); if (!order) return res.status(404).json({ error: 'Order not found.' }); res.json(order); }
   catch (error) { res.status(400).json({ error: error.message }); }
 };
 
