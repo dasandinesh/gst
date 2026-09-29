@@ -1,18 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../../api';
+import { ACCEPTED_FILES, readRows } from './ecomFileReader';
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const monthLabel = (fp) => (fp ? `${fp.slice(0, 2)}/${fp.slice(2)}` : '');
-
-const readJsonFile = async (file) => {
-  try {
-    const data = JSON.parse(await file.text());
-    if (!Array.isArray(data)) throw new Error();
-    return data;
-  } catch {
-    throw new Error(`"${file.name}" is not a JSON list of orders.`);
-  }
-};
 
 // "Marketplace (e-commerce) sales" inside the GSTR-1 card: upload an e-commerce
 // operator's monthly TCS sales report (+ returns report), preview the state-wise
@@ -38,8 +29,8 @@ const EcomImport = ({ range }) => {
 
   const send = async (previewOnly) => {
     const body = {
-      sales: await readJsonFile(files.sales),
-      returns: files.returns ? await readJsonFile(files.returns) : [],
+      sales: await readRows(files.sales, false),
+      returns: files.returns ? await readRows(files.returns, true) : [],
       files: [files.sales.name, files.returns?.name].filter(Boolean),
     };
     return fetchJson(`/api/reports/gst/ecom/import${previewOnly ? '?preview=1' : ''}`, {
@@ -91,17 +82,17 @@ const EcomImport = ({ range }) => {
     <div className="ecom-import">
       <h2>Marketplace (e-commerce) sales</h2>
       <p className="acc-sub">
-        Selling through a marketplace that collects TCS? Download its monthly sales report (and returns report) as JSON from the seller panel and
-        import it here. The net state-wise totals are added to your GSTR-1 (B2CS, Table 14 and HSN) — no need to type them on the portal.
+        Selling through a marketplace that collects TCS? Download its monthly sales report (and returns report) from the seller panel —
+        JSON, Excel (.xlsx / .xls) or CSV — and import it here. The net state-wise totals are added to your GSTR-1 (B2CS, Table 14 and HSN) — no need to type them on the portal.
       </p>
       <div className="acc-actions reports-file-actions" key={inputKey}>
         <label className="reports-file-upload">
-          <span>Sales report (e.g. tcs_sales.json)</span>
-          <input type="file" accept=".json" onChange={(e) => { setFiles((f) => ({ ...f, sales: e.target.files?.[0] || null })); setPreview(null); }} disabled={busy} />
+          <span>Sales report — .json, .xlsx, .xls or .csv (e.g. tcs_sales)</span>
+          <input type="file" accept={ACCEPTED_FILES} onChange={(e) => { setFiles((f) => ({ ...f, sales: e.target.files?.[0] || null })); setPreview(null); }} disabled={busy} />
         </label>
         <label className="reports-file-upload">
-          <span>Returns report — optional (e.g. tcs_sales_return.json)</span>
-          <input type="file" accept=".json" onChange={(e) => { setFiles((f) => ({ ...f, returns: e.target.files?.[0] || null })); setPreview(null); }} disabled={busy} />
+          <span>Returns report — optional, any of the same formats (e.g. tcs_sales_return)</span>
+          <input type="file" accept={ACCEPTED_FILES} onChange={(e) => { setFiles((f) => ({ ...f, returns: e.target.files?.[0] || null })); setPreview(null); }} disabled={busy} />
         </label>
         <button type="button" onClick={runPreview} disabled={busy || !files.sales}>{busy && !preview ? 'Reading…' : 'Preview'}</button>
       </div>

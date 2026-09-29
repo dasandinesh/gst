@@ -32,6 +32,9 @@ const Payment = require('../model/paymentmodule');
 const Sale = require('../model/salemodule');
 const Customer = require('../model/customermodule');
 const Supplier = require('../model/suppliermodule');
+const LedgerAccount = require('../model/ledgeraccountmodule');
+const Expense = require('../model/expensemodule');
+const Journal = require('../model/journalmodule');
 
 const num = (v) => Number(v) || 0;
 const round2 = (v) => Math.round(num(v) * 100) / 100;
@@ -55,11 +58,39 @@ const ACCOUNTS = [
   { key: 'salesOther', name: 'Sales (non-GST bills)', group: 'income', sub: 'Sales' },
   { key: 'salesReturns', name: 'Sales returns & discounts', group: 'income', sub: 'Sales' },
   { key: 'roundOff', name: 'Round off', group: 'income', sub: 'Other income' },
+  { key: 'otherIncome', name: 'Other income', group: 'income', sub: 'Other income', kind: 'income' },
   { key: 'purchases', name: 'Purchases', group: 'expense', sub: 'Purchases' },
   { key: 'purchaseReturns', name: 'Purchase returns', group: 'expense', sub: 'Purchases' },
+  // Standard expense heads for Accounts → Expenses (kind 'expense').
+  { key: 'expRent', name: 'Rent', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expSalary', name: 'Salary & wages', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expElectricity', name: 'Electricity', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expFreight', name: 'Freight & transport', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expTelephone', name: 'Telephone & internet', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expOffice', name: 'Office & stationery', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expRepairs', name: 'Repairs & maintenance', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expBankCharges', name: 'Bank charges', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'expOther', name: 'Other expenses', group: 'expense', sub: 'Expenses', kind: 'expense' },
+  { key: 'capital', name: "Owner's capital", group: 'equity', sub: 'Capital' },
+  { key: 'drawings', name: 'Drawings', group: 'equity', sub: 'Capital' },
   { key: 'openingBalance', name: 'Opening balance adjustment', group: 'equity', sub: 'Capital' },
 ];
 const ACCOUNT_BY_KEY = Object.fromEntries(ACCOUNTS.map((a) => [a.key, a]));
+// Accounts that money can be paid from / received into (cash, banks).
+const MONEY_ACCOUNT_KEYS = ['cash', 'bank'];
+
+// A business-added account (LedgerAccount document) in the chart's shape.
+const SUB_FOR_KIND = { bank: 'Cash & bank', expense: 'Expenses', income: 'Other income' };
+const SUB_FOR_GROUP = { asset: 'Other assets', liability: 'Loans & liabilities', equity: 'Capital', income: 'Other income', expense: 'Expenses' };
+const customAccount = (a) => ({
+  key: `c_${a._id}`,
+  name: a.name,
+  group: a.group,
+  sub: SUB_FOR_KIND[a.kind] || SUB_FOR_GROUP[a.group] || '',
+  kind: a.kind || 'other',
+  custom: true,
+  active: a.active !== false,
+});
 const GROUPS = [
   { key: 'asset', label: 'Assets', debitNormal: true },
   { key: 'liability', label: 'Liabilities', debitNormal: false },
@@ -176,6 +207,32 @@ const saleVoucher = (s) => {
   ]);
 };
 
+// Expense voucher: Dr expense (+ Dr input GST when the credit is claimed) → Cr the
+// account it was paid from; paid "on credit" goes to Creditors under the payee.
+const expenseVoucher = (x) => {
+  const tax = num(x.cgst) + num(x.sgst) + num(x.igst);
+  const onCredit = x.paidFrom === 'creditors';
+  const lines = x.claimItc === false
+    ? [dr(x.account, num(x.amount) + tax)]
+    : [dr(x.account, num(x.amount)), dr('inputCgst', num(x.cgst)), dr('inputSgst', num(x.sgst)), dr('inputIgst', num(x.igst))];
+  lines.push(cr(x.paidFrom, num(x.total), onCredit ? x.payee : ''));
+  return voucher(x.date, 'Expense', x.number, x.payee, `Expense ${x.number || ''}${x.payee ? ` — ${x.payee}` : ''}${x.note ? ` (${x.note})` : ''}`, lines);
+};
+
+// Journal voucher: its lines as entered.
+const journalVoucher = (j) => voucher(j.date, 'Journal', j.number, '', `Journal ${j.number || ''}${j.narration ? ` — ${j.narration}` : ''}`,
+  (j.lines || []).map((l) => ({ account: l.account, debit: num(l.debit), credit: num(l.credit), party: l.party || '' })));
+
+// Opening balance of a business-added account ↔ Opening balance adjustment.
+const customOpeningVoucher = (a) => {
+  const amount = round2(a.openingBalance);
+  if (!amount) return null;
+  const signed = a.openingSide === 'cr' ? -amount : amount;
+  return voucher(OPENING_DATE, 'Opening', '', '', `Opening balance — ${a.name}`, [
+    drOrCr(`c_${a._id}`, signed), drOrCr('openingBalance', -signed),
+  ]);
+};
+
 // ---------------------------------------------------------------- opening balances
 
 // customer.oldBalance / supplier.oldBalance are *running* balances, moved by every
@@ -221,10 +278,14 @@ const openingVouchers = ({ customers, suppliers, sales, gstSales, creditNotes, r
 
 // ---------------------------------------------------------------- loading + reports
 
-// Every voucher for a business, oldest first.
-const buildVouchers = async (businessId) => {
+// The business's chart: the built-in accounts + the ones it added.
+const chartOf = (ledgerAccounts = []) => [...ACCOUNTS, ...ledgerAccounts.map(customAccount)];
+const loadChart = async (businessId) => chartOf(await LedgerAccount.find({ businessId }).sort({ group: 1, name: 1 }).lean());
+
+// The whole books for a business: its chart of accounts and every voucher, oldest first.
+const buildBooks = async (businessId) => {
   const q = { businessId };
-  const [gstSales, creditNotes, purchases, debitNotes, receipts, payments, sales, customers, suppliers] = await Promise.all([
+  const [gstSales, creditNotes, purchases, debitNotes, receipts, payments, sales, customers, suppliers, ledgerAccounts, expenses, journals] = await Promise.all([
     GstSale.find(q, 'customer.name billDetails').lean(),
     CreditNote.find(q, 'customer.name billDetails').lean(),
     Purchase.find(q, 'supplier.name billDetails').lean(),
@@ -234,9 +295,13 @@ const buildVouchers = async (businessId) => {
     Sale.find(q, 'customer.name billDetails').lean(),
     Customer.find(q, 'name oldBalance').lean(),
     Supplier.find(q, 'name oldBalance').lean(),
+    LedgerAccount.find(q).sort({ group: 1, name: 1 }).lean(),
+    Expense.find(q).lean(),
+    Journal.find(q).lean(),
   ]);
   const vouchers = [
     ...openingVouchers({ customers, suppliers, sales, gstSales, creditNotes, receipts, purchases, debitNotes, payments }),
+    ...ledgerAccounts.map(customOpeningVoucher).filter(Boolean),
     ...gstSales.map(gstSaleVoucher),
     ...creditNotes.map(creditNoteVoucher),
     ...purchases.map(purchaseVoucher),
@@ -244,10 +309,13 @@ const buildVouchers = async (businessId) => {
     ...receipts.map(receiptVoucher),
     ...payments.map(paymentVoucher),
     ...sales.map(saleVoucher),
+    ...expenses.map(expenseVoucher),
+    ...journals.map(journalVoucher),
   ].filter((v) => v.lines.length);
   vouchers.sort((a, b) => new Date(a.date) - new Date(b.date));
-  return vouchers;
+  return { accounts: chartOf(ledgerAccounts), vouchers };
 };
+const buildVouchers = async (businessId) => (await buildBooks(businessId)).vouchers;
 
 // Date window: start inclusive (00:00), end inclusive (23:59:59.999). Missing = open-ended.
 const periodOf = ({ startDate, endDate } = {}) => ({
@@ -257,24 +325,31 @@ const periodOf = ({ startDate, endDate } = {}) => ({
 
 // Per account: opening (before start), debit & credit in the period, closing — all as
 // signed Dr − Cr amounts, plus the debit / credit column the closing belongs in.
-const trialBalance = (vouchers, range) => {
+const trialBalance = (vouchers, range, accounts = ACCOUNTS) => {
   const { start, end } = periodOf(range);
-  const rows = Object.fromEntries(ACCOUNTS.map((a) => [a.key, { ...a, opening: 0, debit: 0, credit: 0 }]));
+  const chart = [...accounts];
+  const rows = Object.fromEntries(chart.map((a) => [a.key, { ...a, opening: 0, debit: 0, credit: 0 }]));
   vouchers.forEach((v) => {
     const d = new Date(v.date);
     if (end && d > end) return;
     const before = start && d < start;
     v.lines.forEach((l) => {
+      // An account that was deleted but still has entries: keep it visible.
+      if (!rows[l.account]) {
+        const missing = { key: l.account, name: `Deleted account (${l.account})`, group: 'asset', sub: 'Suspense' };
+        chart.push(missing);
+        rows[l.account] = { ...missing, opening: 0, debit: 0, credit: 0 };
+      }
       const row = rows[l.account];
       if (before) row.opening += l.debit - l.credit;
       else { row.debit += l.debit; row.credit += l.credit; }
     });
   });
-  const list = ACCOUNTS.map((a) => {
+  const list = chart.map((a) => {
     const r = rows[a.key];
     const closing = round2(r.opening + r.debit - r.credit);
     return {
-      key: a.key, name: a.name, group: a.group, sub: a.sub,
+      key: a.key, name: a.name, group: a.group, sub: a.sub, kind: a.kind || '', custom: Boolean(a.custom), active: a.active !== false,
       opening: round2(r.opening), debit: round2(r.debit), credit: round2(r.credit), closing,
       closingDebit: closing > 0 ? closing : 0, closingCredit: closing < 0 ? -closing : 0,
     };
@@ -285,8 +360,8 @@ const trialBalance = (vouchers, range) => {
 };
 
 // One account's statement for a period (optionally one party's lines only, for Debtors / Creditors).
-const accountLedger = (vouchers, accountKey, range, partyName) => {
-  const account = ACCOUNT_BY_KEY[accountKey];
+const accountLedger = (vouchers, accountKey, range, partyName, accounts = ACCOUNTS) => {
+  const account = accounts.find((a) => a.key === accountKey) || ACCOUNT_BY_KEY[accountKey];
   if (!account) throw new Error('Unknown account.');
   const { start, end } = periodOf(range);
   const wanted = partyName ? partyKey(partyName) : null;
@@ -319,7 +394,8 @@ const accountLedger = (vouchers, accountKey, range, partyName) => {
 };
 
 module.exports = {
-  ACCOUNTS, GROUPS, buildVouchers, trialBalance, accountLedger,
+  ACCOUNTS, GROUPS, MONEY_ACCOUNT_KEYS, buildBooks, buildVouchers, loadChart, chartOf, trialBalance, accountLedger,
   // exported for tests
   gstSaleVoucher, creditNoteVoucher, purchaseVoucher, debitNoteVoucher, receiptVoucher, paymentVoucher, saleVoucher, openingVouchers,
+  expenseVoucher, journalVoucher, customOpeningVoucher,
 };

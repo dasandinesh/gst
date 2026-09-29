@@ -172,11 +172,14 @@ export const buildPoDocumentHtml = (po, shop = {}, customer = null, size = 'A4')
 
 // Opens the print popup synchronously (so popup blockers don't catch it), then
 // fills it in; the document's own onload triggers window.print().
-export const printPo = (po, shop = {}, customerList = [], size = 'A4') => {
+// `poOrLoader` is a PO, or an async function that fetches one (keyboard
+// "print last PO"), so the window still opens first.
+export const printPo = async (poOrLoader, shop = {}, customerList = [], size = 'A4') => {
   const { width, height } = PAPER_WINDOW[size] || PAPER_WINDOW.A4;
   const win = window.open('', '_blank', `width=${width},height=${height}`);
   if (!win) { alert('Please allow popups to print the purchase order.'); return; }
   try {
+    const po = typeof poOrLoader === 'function' ? await poOrLoader() : poOrLoader;
     const customerRecord = customerList.find((c) => c.name?.toLowerCase() === (po.customer?.name || '').trim().toLowerCase());
     win.document.open();
     win.document.write(buildPoDocumentHtml(po, shop || {}, customerRecord || null, size));

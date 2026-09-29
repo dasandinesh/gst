@@ -9,6 +9,7 @@ import {
 } from '../common/shippingAddress';
 import { TransportFields, emptyTransport as emptyEwayTransport, transportFromBill, transportRows } from '../common/transportDetails';
 import usePreferences from '../common/usePreferences';
+import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 
 // Delivery challan: goods leave with a document but no sale is booked — the server
 // never changes stock or customer balance for it. It can later be converted into a
@@ -67,6 +68,7 @@ const defaultPrefs = { showList: true, showTransport: true, showRemark: true };
 
 const DcEntry = () => {
   const navigate = useNavigate();
+  const formRef = useRef(null);
   const customerNameRef = useRef(null);
   const productNameRef = useRef(null);
   const hsnRef = useRef(null);
@@ -325,11 +327,23 @@ const DcEntry = () => {
 
   const convertToInvoice = (dc) => navigate('/gst-billing', { state: { fromDc: dc } });
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save,
+  // Ctrl+P print (the challan open in the view popup, else the last one), F8 last challan.
+  const loadLastDc = () => fetchLatest('/api/delivery-challans', 'No delivery challans saved yet.');
+  useEntryShortcuts({
+    isDirty: lines.length > 0,
+    confirmNew: 'Discard this unsaved challan and start a new one?',
+    onNew: () => { setViewDc(null); resetForm(); setTimeout(() => customerNameRef.current?.focus(), 0); },
+    onSave: () => { if (!viewDc && !showShipModal) formRef.current?.requestSubmit(); },
+    onPrint: () => printDc(viewDc || loadLastDc, invoiceSetting, customerList, 'A4'),
+    onOpenLast: () => loadLastDc().then(setViewDc).catch((error) => setSaveStatus({ type: 'error', text: error.message })),
+  });
+
   return (
     <main className="gst-bill-page">
     <div className={`gst-bill-layout${prefs.showList ? '' : ' no-bill-list'}`}>
       <section className="gst-bill-card">
-        <form className="gst-bill-form" onSubmit={handleSave} noValidate>
+        <form className="gst-bill-form" ref={formRef} onSubmit={handleSave} noValidate>
           <fieldset>
             <legend>Challan details</legend>
             <div className="dc-header-row">
@@ -463,18 +477,17 @@ const DcEntry = () => {
           {/* Left: transport details + totals table. Right: stock note / remark. Same layout as the GST bill. */}
           <fieldset className="gst-bill-bottom">
             <div className="gst-bill-bottom-left">
-              {prefs.showTransport && (
-                <TransportFields value={transport} onChange={setTransportField} vehicleListId="dc-vehicle-list">
-                  <div className="gst-input-field">
-                    <label>Driver:</label>
-                    <input type="text" className="gst-text-input" list="dc-driver-list" value={transport.driverName} onChange={(e) => handleDriverChange(e.target.value)} />
-                  </div>
-                  <div className="gst-input-field">
-                    <label>Driver Phone:</label>
-                    <input type="text" className="gst-text-input" value={transport.driverPhone} onChange={(e) => setTransportField('driverPhone', e.target.value)} />
-                  </div>
-                </TransportFields>
-              )}
+              {/* Preferences → "Show Transport details": ticked = all fields (+ driver), unticked = Vehicle No + Transporter ID only. */}
+              <TransportFields value={transport} onChange={setTransportField} vehicleListId="dc-vehicle-list" compact={!prefs.showTransport}>
+                <div className="gst-input-field">
+                  <label>Driver:</label>
+                  <input type="text" className="gst-text-input" list="dc-driver-list" value={transport.driverName} onChange={(e) => handleDriverChange(e.target.value)} />
+                </div>
+                <div className="gst-input-field">
+                  <label>Driver Phone:</label>
+                  <input type="text" className="gst-text-input" value={transport.driverPhone} onChange={(e) => setTransportField('driverPhone', e.target.value)} />
+                </div>
+              </TransportFields>
               <datalist id="dc-vehicle-list">{vehicleList.map((v) => <option key={v._id} value={v.name} />)}</datalist>
               <datalist id="dc-driver-list">{driverList.map((d) => <option key={d._id} value={d.name} />)}</datalist>
               <div className="gst-totals-row">
@@ -509,8 +522,9 @@ const DcEntry = () => {
           {saveStatus.text && <p className={`gst-form-status ${saveStatus.type}`} role="alert">{saveStatus.text}</p>}
           <div className="gst-form-actions">
             <button type="button" className="gst-secondary-button" onClick={resetForm}>{editingId ? 'Cancel edit' : 'Clear'}</button>
-            <button type="submit" className="gst-primary-button">{editingId ? 'Update challan' : 'Save challan'}</button>
+            <button type="submit" className="gst-primary-button" title="Ctrl+S">{editingId ? 'Update challan' : 'Save challan'}</button>
           </div>
+          <ShortcutHint entry="challan" />
         </form>
       </section>
 

@@ -218,11 +218,14 @@ export const buildDcDocumentHtml = (challan, shop = {}, customer = null, size = 
 
 // Opens the print popup synchronously (so popup blockers don't catch it), then
 // fills it in; the document's own onload triggers window.print().
-export const printDc = (challan, shop = {}, customerList = [], size = 'A4') => {
+// `challanOrLoader` is a challan, or an async function that fetches one
+// (keyboard "print last challan"), so the window still opens first.
+export const printDc = async (challanOrLoader, shop = {}, customerList = [], size = 'A4') => {
   const { width, height } = PAPER_WINDOW[size] || PAPER_WINDOW.A4;
   const win = window.open('', '_blank', `width=${width},height=${height}`);
   if (!win) { alert('Please allow popups to print the challan.'); return; }
   try {
+    const challan = typeof challanOrLoader === 'function' ? await challanOrLoader() : challanOrLoader;
     const customerRecord = customerList.find((c) => c.name?.toLowerCase() === (challan.customer?.name || '').trim().toLowerCase());
     win.document.open();
     win.document.write(buildDcDocumentHtml(challan, shop || {}, customerRecord || null, size));

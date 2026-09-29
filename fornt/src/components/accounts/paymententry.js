@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { fetchJson } from '../../api';
+import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import './accounts.css';
 
 const MODES = ['cash', 'bank', 'upi', 'cheque'];
@@ -29,6 +30,8 @@ const PaymentEntry = () => {
   const [filter, setFilter] = useState({ supplier: '', startDate: '', endDate: '' });
   const [editing, setEditing] = useState(null);
 
+  const createFormRef = useRef(null);
+  const editFormRef = useRef(null);
   const createForm = useForm({ defaultValues: emptyPayment });
   const editForm = useForm({ defaultValues: emptyPayment });
 
@@ -164,12 +167,34 @@ const PaymentEntry = () => {
     win.focus();
   };
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save (the edit
+  // popup when open), Ctrl+P print (the payment being edited, else the newest in
+  // the list), F8 open the last payment for editing.
+  useEntryShortcuts({
+    isDirty: createForm.formState.isDirty,
+    confirmNew: 'Discard this unsaved payment and start a new one?',
+    onNew: () => {
+      setEditing(null);
+      createForm.reset(emptyPayment);
+      setTimeout(() => createFormRef.current?.querySelector('input')?.focus(), 0);
+    },
+    onSave: () => (editing ? editFormRef : createFormRef).current?.requestSubmit(),
+    onPrint: () => {
+      const payment = editing || payments[0];
+      if (payment) printPayment(payment);
+      else setStatus({ type: 'error', message: 'No payment in the list to print.' });
+    },
+    onOpenLast: () => fetchLatest('/api/payments', 'No payments saved yet.')
+      .then(openEdit)
+      .catch((error) => setStatus({ type: 'error', message: error.message })),
+  });
+
   return (
     <main className="acc-page">
       <section className="acc-card">
         <h1>New payment</h1>
         <p className="acc-sub">Record money paid to a supplier. It posts to their ledger as a debit, reducing what you owe.</p>
-        <form className="acc-form" onSubmit={createForm.handleSubmit(createPayment)}>
+        <form className="acc-form" ref={createFormRef} onSubmit={createForm.handleSubmit(createPayment)}>
           <label className="acc-field"><span>Payment No.</span>
             <input placeholder="Auto" {...createForm.register('payment_no')} />
           </label>
@@ -191,10 +216,11 @@ const PaymentEntry = () => {
             <input {...createForm.register('note')} />
           </label>
           <div className="acc-actions" style={{ gridColumn: '1 / -1' }}>
-            <button type="submit">Save payment</button>
-            <button type="button" className="secondary" onClick={() => createForm.reset(emptyPayment)}>Clear</button>
+            <button type="submit" title="Ctrl+S">Save payment</button>
+            <button type="button" className="secondary" title="F2" onClick={() => createForm.reset(emptyPayment)}>Clear</button>
           </div>
         </form>
+        <ShortcutHint entry="payment" />
         <datalist id="payment-suppliers">
           {suppliers.map((s) => <option key={s._id} value={s.name} />)}
         </datalist>
@@ -254,7 +280,7 @@ const PaymentEntry = () => {
         <div className="acc-modal-backdrop" onMouseDown={() => setEditing(null)}>
           <div className="acc-modal" onMouseDown={(e) => e.stopPropagation()}>
             <h2>Edit payment {editing.payment_no}</h2>
-            <form className="acc-form" onSubmit={editForm.handleSubmit(saveEdit)}>
+            <form className="acc-form" ref={editFormRef} onSubmit={editForm.handleSubmit(saveEdit)}>
               <label className="acc-field"><span>Payment No.</span><input {...editForm.register('payment_no')} /></label>
               <label className="acc-field"><span>Date</span><input type="date" {...editForm.register('date')} /></label>
               <label className="acc-field"><span>Supplier *</span>

@@ -23,6 +23,22 @@
 .reports-file-upload { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #64748b; font-weight: 600; }
 .reports-file-upload input[type="file"] { font: inherit; font-size: 12px; }
 
+/* GSTR-2B purchase match. */
+.gstr2b-section h1 { display: flex; align-items: center; gap: 8px; }
+.gstr2b-count { display: inline-block; min-width: 24px; padding: 0 8px; font-size: 13px; line-height: 22px; text-align: center; border-radius: 999px; background: #e2e8f0; color: #334155; }
+.gstr2b-bad { border-left: 4px solid #d64545; }
+.gstr2b-bad .gstr2b-count { background: #fde8e6; color: #9e2c25; }
+.gstr2b-warn { border-left: 4px solid #d9a21b; }
+.gstr2b-warn .gstr2b-count { background: #fef3c7; color: #92400e; }
+.gstr2b-ok { border-left: 4px solid #2c7159; }
+.gstr2b-ok .gstr2b-count { background: #e6f4ee; color: #15593e; }
+.gstr2b-info { border-left: 4px solid #94a3b8; }
+.books-muted { color: #64748b; font-size: 12px; }
+
+/* GSTR-3B worksheet. */
+.gstr3b-table td:first-child { max-width: 420px; }
+.gstr3b-note { margin: 8px 0 0; font-size: 12px; color: #64748b; }
+
 /* Marketplace (e-commerce) sales import, inside the GSTR-1 card. */
 .ecom-import { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #cbd5e1; }
 .ecom-import h2 { margin: 0 0 4px; font-size: 16px; color: #0f172a; }

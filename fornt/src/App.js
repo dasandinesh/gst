@@ -44,6 +44,12 @@ import EntryPreferences from './components/preferences/entrypreferences';
 import ChartOfAccounts from './components/books/chartofaccounts';
 import TrialBalance from './components/books/trialbalance';
 import AccountLedger from './components/books/accountledger';
+import Gstr3b from './components/reports/gstr3b';
+import Expenses from './components/books/expenses';
+import Journals from './components/books/journals';
+import ProfitLoss from './components/books/profitloss';
+import BalanceSheet from './components/books/balancesheet';
+import Gstr2b from './components/reports/gstr2b';
 import ReceiptEntry from './components/accounts/receiptentry';
 import SaleBillList from './components/sale/salebilllist';
 import CustomerLedger from './components/accounts/customerledger';
@@ -151,6 +157,12 @@ function App() {
                 <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
                 <Route path="/trial-balance" element={<TrialBalance />} />
                 <Route path="/account-ledger" element={<AccountLedger />} />
+                <Route path="/gstr-3b" element={<Gstr3b />} />
+                <Route path="/expenses" element={<Expenses />} />
+                <Route path="/journal-voucher" element={<Journals />} />
+                <Route path="/profit-loss" element={<ProfitLoss />} />
+                <Route path="/balance-sheet" element={<BalanceSheet />} />
+                <Route path="/gstr-2b" element={<Gstr2b />} />
                 <Route path="/receipts" element={<ReceiptEntry />} />
                 <Route path="/customer-ledger" element={<CustomerLedger />} />
                 <Route path="/suppliers" element={<SupplierAdd />} />

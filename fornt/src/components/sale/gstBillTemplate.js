@@ -359,6 +359,13 @@ export function GstBillDocument({ bill, shop = {}, customer = null, showHsnSumma
                 <td className="kv"><b>PO Date:</b><br></br> {toDateInput(b.purchaseOrderDate) || '—'}</td>
               </tr>
             ) : null}
+            {/* Transport: printed only when a vehicle number or transporter ID is filled in. */}
+            {b.transport?.vehicleNumber || b.transport?.transporterId ? (
+              <tr>
+                <td className="kv"><b>Vehicle No:</b> <br></br>{b.transport.vehicleNumber || '—'}</td>
+                <td className="kv"><b>Transporter ID:</b><br></br> {b.transport.transporterId || '—'}</td>
+              </tr>
+            ) : null}
             <tr>
               <td className="kv"><b>PoS:</b> <br></br>{b.placeOfSupply || '—'}</td>
               <td className="kv"><b>Tax Type:</b> <br></br>{isIgst ? 'IGST (Inter-state)' : 'CGST + SGST (Intra-state)'}</td>

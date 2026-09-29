@@ -9,6 +9,7 @@ import {
 } from '../common/shippingAddress';
 import { TransportFields, emptyTransport, transportFromBill, hasTransport, transportRows } from '../common/transportDetails';
 import usePreferences from '../common/usePreferences';
+import { useEntryShortcuts, ShortcutHint } from '../common/entryShortcuts';
 
 const todayString = () => {
   const now = new Date();
@@ -66,6 +67,7 @@ const emptyBillMeta = {
 const defaultPrefs = { showBillList: true, showReferences: true, showTransport: true, showPayment: true, showRemark: true };
 
 const GstBillEntry = () => {
+  const formRef = useRef(null);
   const customerNameRef = useRef(null);
   const productNameRef = useRef(null);
   const hsnRef = useRef(null);
@@ -464,11 +466,28 @@ const GstBillEntry = () => {
     }
   };
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save,
+  // Ctrl+P print (the bill open in the view popup, else the last bill), F8 last bill.
+  useEntryShortcuts({
+    isDirty: lines.length > 0,
+    confirmNew: 'Discard this unsaved bill and start a new one?',
+    onNew: () => {
+      setViewBill(null);
+      resetForm();
+      setTimeout(() => customerNameRef.current?.focus(), 0);
+    },
+    onSave: () => { if (!viewBill && !showShipModal) formRef.current?.requestSubmit(); },
+    onPrint: () => printBill(viewBill || loadLastBill, 'A4'),
+    onOpenLast: () => loadLastBill()
+      .then((bill) => setViewBill(bill))
+      .catch((error) => setSaveStatus({ type: 'error', text: error.message })),
+  });
+
   return (
     <main className="gst-bill-page">
     <div className={`gst-bill-layout${prefs.showBillList ? '' : ' no-bill-list'}`}>
       <section className="gst-bill-card">
-        <form className="gst-bill-form" onSubmit={handleSave} noValidate>
+        <form className="gst-bill-form" ref={formRef} onSubmit={handleSave} noValidate>
           <fieldset>
             <legend>Bill details</legend>
             <div className="gst-bill-header-row">
@@ -602,7 +621,8 @@ const GstBillEntry = () => {
           <fieldset className="gst-bill-bottom">
             {/* Transport details (e-way bill Part-B) */}
             <div className="gst-bill-bottom-left">
-            {prefs.showTransport && <TransportFields value={billMeta.transport} onChange={setTransport} />}
+            {/* Preferences → "Show Transport details": ticked = all fields, unticked = Vehicle No + Transporter ID only. */}
+            <TransportFields value={billMeta.transport} onChange={setTransport} compact={!prefs.showTransport} />
             </div>
             {(prefs.showPayment || prefs.showRemark) && (
                <div className="gst-totals-side">
@@ -645,14 +665,15 @@ const GstBillEntry = () => {
             </table>
             <div className="gst-form-actions">
               <div className="gst-print-last" title={lastSavedBill ? `Print ${lastSavedBill.billDetails?.invoiceNumber || 'the bill just saved'}` : 'Print the newest saved bill'}>
-                <button type="button" className="gst-secondary-button" onClick={() => printBill(loadLastBill, 'A4')}>
+                <button type="button" className="gst-secondary-button" title="Ctrl+P" onClick={() => printBill(loadLastBill, 'A4')}>
                   🖨 Print last bill{lastSavedBill?.billDetails?.invoiceNumber ? ` (${lastSavedBill.billDetails.invoiceNumber})` : ''}
                 </button>
                 <button type="button" className="gst-secondary-button" onClick={() => printBill(loadLastBill, 'A5')}>A5</button>
               </div>
-              <button type="button" className="gst-secondary-button" onClick={resetForm}>{editingId ? 'Cancel edit' : 'Clear'}</button>
-              <button type="submit" className="gst-primary-button">{editingId ? 'Update bill' : 'Save bill'}</button>
+              <button type="button" className="gst-secondary-button" title="F2 = new bill" onClick={resetForm}>{editingId ? 'Cancel edit' : 'Clear'}</button>
+              <button type="submit" className="gst-primary-button" title="Ctrl+S">{editingId ? 'Update bill' : 'Save bill'}</button>
             </div>
+            <ShortcutHint entry="bill" />
           </div>
         </form>
       </section>

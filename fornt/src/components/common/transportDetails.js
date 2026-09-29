@@ -58,7 +58,22 @@ export const transportRows = (t) => {
 // sale/gstbillentry.css). `onChange(key, value)` sets one field. `vehicleListId`
 // links the Vehicle No box to a <datalist> of saved vehicles; `children` are
 // extra fields placed after the vehicle (the challan's driver name/phone).
-export const TransportFields = ({ value, onChange, vehicleListId, children }) => (
+// `compact` (Preferences → "Show Transport details" unticked) shows only
+// Vehicle No and Transporter ID; the other saved values are kept as they are.
+export const TransportFields = ({ value, onChange, vehicleListId, children, compact = false }) => (compact ? (
+  <div className="gst-transport-row">
+    <span className="gst-bill-refs-title">🚚 Transport <small>(optional)</small></span>
+    <div className="gst-input-field">
+      <label>Vehicle No:</label>
+      {/* A vehicle number only applies to road transport, so typing one sets the mode to Road. */}
+      <input type="text" className="gst-text-input" placeholder="TN01AB1234" list={vehicleListId} value={value.vehicleNumber} onChange={(e) => { if (value.mode !== 'road') onChange('mode', 'road'); onChange('vehicleNumber', e.target.value.toUpperCase()); }} />
+    </div>
+    <div className="gst-input-field">
+      <label>Transporter ID:</label>
+      <input type="text" className="gst-text-input" placeholder="GSTIN / TRANSIN" maxLength={15} value={value.transporterId} onChange={(e) => onChange('transporterId', e.target.value.toUpperCase())} />
+    </div>
+  </div>
+) : (
   <div className="gst-transport-row">
     <span className="gst-bill-refs-title">🚚 Transport details <small>(optional)</small></span>
     <div className="gst-input-field">
@@ -103,4 +118,4 @@ export const TransportFields = ({ value, onChange, vehicleListId, children }) =>
       <input type="number" className="gst-text-input" min="0" max="4000" step="1" value={value.distanceKm} onChange={(e) => onChange('distanceKm', e.target.value)} />
     </div>
   </div>
-);
+));

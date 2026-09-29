@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { fetchJson } from '../../api';
+import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import './accounts.css';
 
 const MODES = ['cash', 'bank', 'upi', 'cheque'];
@@ -29,6 +30,8 @@ const ReceiptEntry = () => {
   const [filter, setFilter] = useState({ customer: '', startDate: '', endDate: '' });
   const [editing, setEditing] = useState(null);
 
+  const createFormRef = useRef(null);
+  const editFormRef = useRef(null);
   const createForm = useForm({ defaultValues: emptyReceipt });
   const editForm = useForm({ defaultValues: emptyReceipt });
 
@@ -164,12 +167,34 @@ const ReceiptEntry = () => {
     win.focus();
   };
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save (the edit
+  // popup when open), Ctrl+P print (the receipt being edited, else the newest in
+  // the list), F8 open the last receipt for editing.
+  useEntryShortcuts({
+    isDirty: createForm.formState.isDirty,
+    confirmNew: 'Discard this unsaved receipt and start a new one?',
+    onNew: () => {
+      setEditing(null);
+      createForm.reset(emptyReceipt);
+      setTimeout(() => createFormRef.current?.querySelector('input')?.focus(), 0);
+    },
+    onSave: () => (editing ? editFormRef : createFormRef).current?.requestSubmit(),
+    onPrint: () => {
+      const receipt = editing || receipts[0];
+      if (receipt) printReceipt(receipt);
+      else setStatus({ type: 'error', message: 'No receipt in the list to print.' });
+    },
+    onOpenLast: () => fetchLatest('/api/receipts', 'No receipts saved yet.')
+      .then(openEdit)
+      .catch((error) => setStatus({ type: 'error', message: error.message })),
+  });
+
   return (
     <main className="acc-page">
       <section className="acc-card">
         <h1>New receipt</h1>
         <p className="acc-sub">Record money received from a customer. It posts to their ledger as a credit.</p>
-        <form className="acc-form" onSubmit={createForm.handleSubmit(createReceipt)}>
+        <form className="acc-form" ref={createFormRef} onSubmit={createForm.handleSubmit(createReceipt)}>
           <label className="acc-field"><span>Receipt No.</span>
             <input placeholder="Auto" {...createForm.register('receipt_no')} />
           </label>
@@ -191,10 +216,11 @@ const ReceiptEntry = () => {
             <input {...createForm.register('note')} />
           </label>
           <div className="acc-actions" style={{ gridColumn: '1 / -1' }}>
-            <button type="submit">Save receipt</button>
-            <button type="button" className="secondary" onClick={() => createForm.reset(emptyReceipt)}>Clear</button>
+            <button type="submit" title="Ctrl+S">Save receipt</button>
+            <button type="button" className="secondary" title="F2" onClick={() => createForm.reset(emptyReceipt)}>Clear</button>
           </div>
         </form>
+        <ShortcutHint entry="receipt" />
         <datalist id="receipt-customers">
           {customers.map((c) => <option key={c._id} value={c.name} />)}
         </datalist>
@@ -254,7 +280,7 @@ const ReceiptEntry = () => {
         <div className="acc-modal-backdrop" onMouseDown={() => setEditing(null)}>
           <div className="acc-modal" onMouseDown={(e) => e.stopPropagation()}>
             <h2>Edit receipt {editing.receipt_no}</h2>
-            <form className="acc-form" onSubmit={editForm.handleSubmit(saveEdit)}>
+            <form className="acc-form" ref={editFormRef} onSubmit={editForm.handleSubmit(saveEdit)}>
               <label className="acc-field"><span>Receipt No.</span><input {...editForm.register('receipt_no')} /></label>
               <label className="acc-field"><span>Date</span><input type="date" {...editForm.register('date')} /></label>
               <label className="acc-field"><span>Customer *</span>

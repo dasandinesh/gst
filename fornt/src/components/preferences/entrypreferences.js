@@ -12,7 +12,7 @@ const PAGES = [
     options: [
       { key: 'showBillList', label: 'Show bill list', hint: 'The list of saved bills on the right. Off: the entry form uses the full width.' },
       { key: 'showReferences', label: 'Show Delivery & references', hint: 'DC No / Date, Buyer\'s PO No / Date and Ship to.' },
-      { key: 'showTransport', label: 'Show Transport details', hint: 'Mode, vehicle no., transporter, LR no., distance.' },
+      { key: 'showTransport', label: 'Show all Transport details', hint: 'Ticked: mode, vehicle type, vehicle no., transporter ID & name, LR no. / date, distance. Unticked: only Vehicle No and Transporter ID.' },
       { key: 'showPayment', label: 'Show Cash / Credit / Balance', hint: 'Cash received, credit and balance due beside the totals.' },
       { key: 'showRemark', label: 'Show Remark', hint: 'The remark box printed on the bill.' },
     ],
@@ -22,7 +22,7 @@ const PAGES = [
     title: 'Delivery Challan page',
     options: [
       { key: 'showList', label: 'Show challan list', hint: 'The list of saved challans on the right. Off: the entry form uses the full width.' },
-      { key: 'showTransport', label: 'Show Transport details', hint: 'Mode, vehicle no., driver, transporter, LR no., distance.' },
+      { key: 'showTransport', label: 'Show all Transport details', hint: 'Ticked: mode, vehicle type, vehicle no., driver, transporter, LR no. / date, distance. Unticked: only Vehicle No and Transporter ID.' },
       { key: 'showRemark', label: 'Show Remark', hint: 'The remark box printed on the challan.' },
     ],
   },

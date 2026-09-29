@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from '../../api';
+import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import '../sale/gstbillentry.css';
 
 const REASONS = ['Purchase Return', 'Rate Difference', 'Discount Received', 'Deficiency in Goods/Services', 'Correction of Invoice', 'Other'];
@@ -52,6 +53,7 @@ const emptyBillMeta = { debitNoteNumber: '', date: todayString(), taxType: 'CGST
 
 const DebitNoteEntry = () => {
   const originalBillRef = useRef(null);
+  const formRef = useRef(null);
   const productNameRef = useRef(null);
   const hsnRef = useRef(null);
   const qtyRef = useRef(null);
@@ -264,6 +266,18 @@ const DebitNoteEntry = () => {
     }
   };
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save, F8 last debit note.
+  // (No print layout for debit notes, so Ctrl+P stays the browser's print.)
+  useEntryShortcuts({
+    isDirty: lines.length > 0,
+    confirmNew: 'Discard this unsaved debit note and start a new one?',
+    onNew: () => { setViewNote(null); resetForm(); setTimeout(() => formRef.current?.querySelector('input, select')?.focus(), 0); },
+    onSave: () => { if (!viewNote) formRef.current?.requestSubmit(); },
+    onOpenLast: () => fetchLatest('/api/debit-notes', 'No debit notes saved yet.')
+      .then(setViewNote)
+      .catch((error) => setSaveStatus({ type: 'error', text: error.message })),
+  });
+
   const deleteNote = async (note) => {
     if (!window.confirm(`Delete debit note ${note.billDetails?.debitNoteNumber}? This cannot be undone.`)) return;
     try {
@@ -279,7 +293,7 @@ const DebitNoteEntry = () => {
     <main className="gst-bill-page">
     <div className="gst-bill-layout">
       <section className="gst-bill-card">
-        <form className="gst-bill-form" onSubmit={handleSave} noValidate>
+        <form className="gst-bill-form" ref={formRef} onSubmit={handleSave} noValidate>
           <fieldset>
             <legend>Original bill</legend>
             <div className="gst-bill-header-row">
@@ -437,8 +451,9 @@ const DebitNoteEntry = () => {
           {saveStatus.text && <p className={`gst-form-status ${saveStatus.type}`} role="alert">{saveStatus.text}</p>}
           <div className="gst-form-actions">
             <button type="button" className="gst-secondary-button" onClick={resetForm}>{editingId ? 'Cancel edit' : 'Clear'}</button>
-            <button type="submit" className="gst-primary-button">{editingId ? 'Update debit note' : 'Save debit note'}</button>
+            <button type="submit" className="gst-primary-button" title="Ctrl+S">{editingId ? 'Update debit note' : 'Save debit note'}</button>
           </div>
+          <ShortcutHint entry="debit note" print={false} />
         </form>
       </section>
 

@@ -8,3 +8,23 @@
 .books-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #475569; cursor: pointer; }
 .books-back { margin: 0 0 6px; font-size: 13px; }
 .books-back a { color: #237553; }
+.books-subhead { margin: 14px 0 8px; font-size: 15px; color: #0f172a; }
+.books-tag { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: 10.5px; font-weight: 700; color: #1f4b3e; background: #e6f4ee; border-radius: 999px; vertical-align: middle; }
+.books-inactive td { opacity: .55; }
+/* Profit & Loss / Balance sheet */
+.pl-summary { margin-bottom: 12px; }
+.pl-loss { background: #fde8e6; border-color: #f5b5ae; }
+.pl-loss strong { color: #9e2c25; }
+.pl-table .pl-indent { padding-left: 22px; }
+.pl-table .pl-total td { font-weight: 700; border-top: 1px solid #cbd5e1; }
+.pl-table .pl-grand td { font-weight: 800; font-size: 14.5px; background: #e6f4ee; color: #15593e; }
+.bs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.bs-grid table { margin-bottom: 12px; }
+@media (max-width: 900px) { .bs-grid { grid-template-columns: 1fr; } }
+
+/* Journal voucher lines editor */
+.jv-lines td { vertical-align: middle; }
+.jv-lines select, .jv-lines input { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; border: 1px solid #cbd5e1; border-radius: 6px; }
+.jv-lines input[type="number"] { text-align: right; }
+.jv-diff { color: #b91c1c; font-weight: 700; }
+.jv-ok { color: #15593e; font-weight: 700; }

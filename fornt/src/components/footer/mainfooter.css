@@ -19,6 +19,23 @@
   color: rgba(232, 243, 239, .72);
 }
 
+.mainfooter-shortcuts {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(232, 243, 239, .72);
+}
+.mainfooter-shortcuts span { margin-right: 6px; font-weight: 700; color: rgba(232, 243, 239, .9); }
+.mainfooter-shortcuts kbd {
+  display: inline-block;
+  padding: 0 5px;
+  font: 600 11px/1.6 inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
 .mainfooter-links {
   display: flex;
   flex-wrap: wrap;

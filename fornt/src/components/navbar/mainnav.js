@@ -74,6 +74,8 @@ const ACCOUNT_LINKS = [
   { to: '/payments', label: 'Payments', icon: 'receipt' },
   { to: '/customer-ledger', label: 'Customer Ledger', icon: 'book' },
   { to: '/supplier-ledger', label: 'Supplier Ledger', icon: 'book' },
+  { to: '/expenses', label: 'Expenses', icon: 'wallet' },
+  { to: '/journal-voucher', label: 'Journal Voucher', icon: 'pencil' },
   { to: '/chart-of-accounts', label: 'Chart of Accounts', icon: 'layers' },
   { to: '/trial-balance', label: 'Trial Balance', icon: 'clipboard' },
   { to: '/account-ledger', label: 'Account Ledger', icon: 'book' },
@@ -81,6 +83,10 @@ const ACCOUNT_LINKS = [
 
 const REPORT_LINKS = [
   { to: '/gst-reports', label: 'GST Reports', icon: 'clipboard' },
+  { to: '/gstr-3b', label: 'GSTR-3B Worksheet', icon: 'receipt' },
+  { to: '/gstr-2b', label: 'GSTR-2B Match', icon: 'clipboard' },
+  { to: '/profit-loss', label: 'Profit & Loss', icon: 'wallet' },
+  { to: '/balance-sheet', label: 'Balance Sheet', icon: 'layers' },
   { to: '/day-book', label: 'Day Book', icon: 'fileText' },
 ];
 

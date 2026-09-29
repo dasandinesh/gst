@@ -122,10 +122,20 @@ const Gstr1Checklist = ({ check }) => {
   if (check.loading) return <p className="acc-status">Checking bills…</p>;
   if (check.error) return <p className="acc-status error">{check.error}</p>;
   const { issues, counts } = check;
+  const marketplace = counts.ecomMonths
+    ? ` + ${counts.ecomMonths} imported marketplace month(s), net ₹${Number(counts.ecomTaxableValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+    : '';
+  if (!issues.length && !counts.bills && !counts.creditNotes && !counts.ecomMonths) {
+    return (
+      <p className="acc-status error">
+        Nothing to export for this period — no GST bills, credit notes or marketplace sales between the From and To dates above. Check the dates.
+      </p>
+    );
+  }
   if (!issues.length) {
     return (
       <p className="acc-status gstr1-check-ok">
-        ✓ All clear — {counts.bills} bill(s) and {counts.creditNotes} credit note(s) checked, no problems found. Ready to export.
+        ✓ All clear — {counts.bills} bill(s) and {counts.creditNotes} credit note(s) checked{marketplace}. No problems found. Ready to export.
       </p>
     );
   }
@@ -133,7 +143,7 @@ const Gstr1Checklist = ({ check }) => {
   return (
     <div className="gstr1-check">
       <p className="acc-status">
-        Checked {counts.bills} bill(s) and {counts.creditNotes} credit note(s):{' '}
+        Checked {counts.bills} bill(s) and {counts.creditNotes} credit note(s){marketplace}:{' '}
         <strong className="gstr1-count-error">{counts.errors} to fix</strong>
         {counts.warnings ? <>, <strong className="gstr1-count-warning">{counts.warnings} to review</strong></> : null}.
         {' '}Fix the red ones in the bill (Transactions → GST Bills → View → Edit), then check again.

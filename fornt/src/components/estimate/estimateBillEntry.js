@@ -3,6 +3,7 @@ import { fetchJson } from '../../api';
 import '../sale/gstbillentry.css';
 import './estimateBillEntry.css';
 import { buildEstimateDocumentHtml, PAPER_WINDOW } from './estimateBillTemplate';
+import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 
 const todayString = () => {
   const now = new Date();
@@ -38,6 +39,7 @@ const emptyCustomer = { name: '', customerId: '' };
 const emptyBillMeta = { estimateNumber: '', date: todayString(), notes: '', cash: 0, credit: 0 };
 
 const EstimateBillEntry = () => {
+  const formRef = useRef(null);
   const customerNameRef = useRef(null);
   const barcodeRef = useRef(null);
   const productNameRef = useRef(null);
@@ -275,12 +277,14 @@ const EstimateBillEntry = () => {
   // printed estimate looks. This just opens the window (synchronously, so popup
   // blockers don't catch it) and fills it in once the estimate HTML is built;
   // the template's own onload triggers window.print().
-  const printBill = async (bill, size = 'A4') => {
+  // `billOrLoader`: an estimate, or an async function that fetches one (Ctrl+P "print last").
+  const printBill = async (billOrLoader, size = 'A4') => {
     const { width, height } = PAPER_WINDOW[size] || PAPER_WINDOW.A4;
     const win = window.open('', '_blank', `width=${width},height=${height}`);
     if (!win) { alert('Please allow popups to print the estimate.'); return; }
     win.document.write('<p style="font-family:sans-serif;padding:20px;">Preparing estimate…</p>');
     try {
+      const bill = typeof billOrLoader === 'function' ? await billOrLoader() : billOrLoader;
       const customerRecord = customerList.find((c) => c.name?.toLowerCase() === (bill.customer?.name || '').trim().toLowerCase());
       const html = await buildEstimateDocumentHtml(bill, invoiceSetting || {}, customerRecord || null, size);
       win.document.open();
@@ -294,11 +298,23 @@ const EstimateBillEntry = () => {
     }
   };
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save,
+  // Ctrl+P print (the estimate open in the view popup, else the last one), F8 last estimate.
+  const loadLastEstimate = () => fetchLatest('/api/estimate-bills', 'No estimates saved yet.');
+  useEntryShortcuts({
+    isDirty: lines.length > 0,
+    confirmNew: 'Discard this unsaved estimate and start a new one?',
+    onNew: () => { setViewBill(null); resetForm(); setTimeout(() => customerNameRef.current?.focus(), 0); },
+    onSave: () => { if (!viewBill) formRef.current?.requestSubmit(); },
+    onPrint: () => printBill(viewBill || loadLastEstimate, 'A4'),
+    onOpenLast: () => loadLastEstimate().then(setViewBill).catch((error) => setSaveStatus({ type: 'error', text: error.message })),
+  });
+
   return (
     <main className="gst-bill-page estimate-bill-page">
     <div className="gst-bill-layout">
       <section className="gst-bill-card">
-        <form className="gst-bill-form" onSubmit={handleSave} noValidate>
+        <form className="gst-bill-form" ref={formRef} onSubmit={handleSave} noValidate>
           <fieldset>
             <legend>Estimate details</legend>
             <div className="gst-bill-header-row">
@@ -417,8 +433,9 @@ const EstimateBillEntry = () => {
           {saveStatus.text && <p className={`gst-form-status ${saveStatus.type}`} role="alert">{saveStatus.text}</p>}
           <div className="gst-form-actions">
             <button type="button" className="gst-secondary-button" onClick={resetForm}>{editingId ? 'Cancel edit' : 'Clear'}</button>
-            <button type="submit" className="gst-primary-button">{editingId ? 'Update estimate' : 'Save estimate'}</button>
+            <button type="submit" className="gst-primary-button" title="Ctrl+S">{editingId ? 'Update estimate' : 'Save estimate'}</button>
           </div>
+          <ShortcutHint entry="estimate" />
         </form>
       </section>
 

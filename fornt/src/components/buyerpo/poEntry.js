@@ -8,6 +8,7 @@ import {
   formatAddress, hasAddress, taxTypeForStates,
 } from '../common/shippingAddress';
 import usePreferences from '../common/usePreferences';
+import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 
 // Buyer's purchase order: records what a customer has ordered, with their PO number.
 // No sale is booked — the server never changes stock or customer balance for it.
@@ -67,6 +68,7 @@ const defaultPrefs = { showList: true, showPaymentTerms: true, showRemark: true 
 
 const PoEntry = () => {
   const navigate = useNavigate();
+  const formRef = useRef(null);
   const customerNameRef = useRef(null);
   const poNumberRef = useRef(null);
   const productNameRef = useRef(null);
@@ -312,6 +314,18 @@ const PoEntry = () => {
     }
   };
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save,
+  // Ctrl+P print (the PO open in the view popup, else the last one), F8 last PO.
+  const loadLastPo = () => fetchLatest('/api/buyer-pos', "No buyer's POs saved yet.");
+  useEntryShortcuts({
+    isDirty: lines.length > 0,
+    confirmNew: 'Discard this unsaved purchase order and start a new one?',
+    onNew: () => { setViewPo(null); resetForm(); setTimeout(() => customerNameRef.current?.focus(), 0); },
+    onSave: () => { if (!viewPo && !showShipModal) formRef.current?.requestSubmit(); },
+    onPrint: () => printPo(viewPo || loadLastPo, invoiceSetting, customerList, 'A4'),
+    onOpenLast: () => loadLastPo().then(setViewPo).catch((error) => setSaveStatus({ type: 'error', text: error.message })),
+  });
+
   const changeStatus = async (po, status) => {
     try {
       const updated = await fetchJson(`/api/buyer-pos/${po._id}/status`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
@@ -326,7 +340,7 @@ const PoEntry = () => {
     <main className="gst-bill-page">
     <div className={`gst-bill-layout${prefs.showList ? '' : ' no-bill-list'}`}>
       <section className="gst-bill-card">
-        <form className="gst-bill-form" onSubmit={handleSave} noValidate>
+        <form className="gst-bill-form" ref={formRef} onSubmit={handleSave} noValidate>
           <fieldset>
             <legend>Buyer's purchase order</legend>
             <div className="dc-header-row">
@@ -495,8 +509,9 @@ const PoEntry = () => {
           {saveStatus.text && <p className={`gst-form-status ${saveStatus.type}`} role="alert">{saveStatus.text}</p>}
           <div className="gst-form-actions">
             <button type="button" className="gst-secondary-button" onClick={resetForm}>{editingId ? 'Cancel edit' : 'Clear'}</button>
-            <button type="submit" className="gst-primary-button">{editingId ? 'Update PO' : 'Save PO'}</button>
+            <button type="submit" className="gst-primary-button" title="Ctrl+S">{editingId ? 'Update PO' : 'Save PO'}</button>
           </div>
+          <ShortcutHint entry="PO" />
         </form>
       </section>
 

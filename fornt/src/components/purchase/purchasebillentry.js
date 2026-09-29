@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from '../../api';
+import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import '../sale/gstbillentry.css';
 
 const todayString = () => {
@@ -49,6 +50,7 @@ const emptySupplier = { name: '', supplierId: '', gstin: '', state: '' };
 const emptyBillMeta = { billNumber: '', supplierInvoiceNumber: '', date: todayString(), taxType: 'CGST_SGST', placeOfSupply: '', notes: '', cash: 0, credit: 0 };
 
 const PurchaseBillEntry = () => {
+  const formRef = useRef(null);
   const supplierNameRef = useRef(null);
   const productNameRef = useRef(null);
   const hsnRef = useRef(null);
@@ -244,6 +246,18 @@ const PurchaseBillEntry = () => {
     }
   };
 
+  // Keyboard shortcuts (common/entryShortcuts.js): F2 new, Ctrl+S save, F8 last purchase.
+  // (No print layout for purchases, so Ctrl+P stays the browser's print.)
+  useEntryShortcuts({
+    isDirty: lines.length > 0,
+    confirmNew: 'Discard this unsaved purchase bill and start a new one?',
+    onNew: () => { setViewBill(null); resetForm(); setTimeout(() => supplierNameRef.current?.focus(), 0); },
+    onSave: () => { if (!viewBill) formRef.current?.requestSubmit(); },
+    onOpenLast: () => fetchLatest('/api/purchases', 'No purchase bills saved yet.')
+      .then(setViewBill)
+      .catch((error) => setSaveStatus({ type: 'error', text: error.message })),
+  });
+
   const deleteBill = async (bill) => {
     if (!window.confirm(`Delete bill ${bill.billDetails?.billNumber}? This cannot be undone.`)) return;
     try {
@@ -259,7 +273,7 @@ const PurchaseBillEntry = () => {
     <main className="gst-bill-page">
     <div className="gst-bill-layout">
       <section className="gst-bill-card">
-        <form className="gst-bill-form" onSubmit={handleSave} noValidate>
+        <form className="gst-bill-form" ref={formRef} onSubmit={handleSave} noValidate>
           <fieldset>
             <legend>Bill details</legend>
             <div className="gst-bill-header-row">
@@ -403,8 +417,9 @@ const PurchaseBillEntry = () => {
           {saveStatus.text && <p className={`gst-form-status ${saveStatus.type}`} role="alert">{saveStatus.text}</p>}
           <div className="gst-form-actions">
             <button type="button" className="gst-secondary-button" onClick={resetForm}>{editingId ? 'Cancel edit' : 'Clear'}</button>
-            <button type="submit" className="gst-primary-button">{editingId ? 'Update bill' : 'Save bill'}</button>
+            <button type="submit" className="gst-primary-button" title="Ctrl+S">{editingId ? 'Update bill' : 'Save bill'}</button>
           </div>
+          <ShortcutHint entry="purchase" print={false} />
         </form>
       </section>
 

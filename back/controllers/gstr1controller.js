@@ -7,6 +7,11 @@ const InvoiceSetting = require('../model/invoice_settings');
 const { buildGstr1, parseGstr1, toReturnPeriod, cleanGstin } = require('../utils/gstr1');
 const { checkGstr1 } = require('../utils/gstr1Checklist');
 const EcomSale = require('../model/ecomsalemodule');
+const Purchase = require('../model/purchasemodule');
+const DebitNote = require('../model/debitnotemodule');
+const { buildGstr3b } = require('../utils/gstr3b');
+const Expense = require('../model/expensemodule');
+const { parseGstr2b, matchGstr2b } = require('../utils/gstr2b');
 const { parseEcomReport } = require('../utils/ecomReport');
 
 // Marketplace months that overlap the From–To period.
@@ -76,12 +81,74 @@ exports.checkGstr1 = async (req, res) => {
   try {
     if (!req.query.startDate || !req.query.endDate) return res.status(400).json({ error: 'Pick a From and To date for the return period.' });
     const filter = dateFilter(req);
-    const [business, sales, creditNotes] = await Promise.all([
+    const [business, sales, creditNotes, ecomSales] = await Promise.all([
       sellerProfile(req.auth.businessId),
       GstSale.find(filter).sort({ 'billDetails.date': 1 }).lean(),
       CreditNote.find(filter).sort({ 'billDetails.date': 1 }).lean(),
+      EcomSale.find(ecomFilter(req), 'fp etin totals').lean(),
     ]);
-    res.json(checkGstr1({ business, sales, creditNotes }));
+    const result = checkGstr1({ business, sales, creditNotes });
+    // Marketplace months were checked when imported; report them so the summary covers the whole return.
+    result.counts.ecomMonths = ecomSales.length;
+    result.counts.ecomTaxableValue = Math.round(ecomSales.reduce((t, e) => t + (Number(e.totals?.taxableValue) || 0), 0) * 100) / 100;
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// GET /api/reports/gst/gstr3b?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+// GSTR-3B worksheet for the period — see utils/gstr3b.js.
+exports.getGstr3b = async (req, res) => {
+  try {
+    if (!req.query.startDate || !req.query.endDate) return res.status(400).json({ error: 'Pick the return month.' });
+    const businessId = req.auth.businessId;
+    const filter = dateFilter(req);
+    const expenseFilter = { businessId, date: filter['billDetails.date'] };
+    const [business, sales, creditNotes, purchases, debitNotes, ecomSales, expenses] = await Promise.all([
+      sellerProfile(businessId),
+      GstSale.find(filter).lean(),
+      CreditNote.find(filter).lean(),
+      Purchase.find(filter).lean(),
+      DebitNote.find(filter).lean(),
+      EcomSale.find(ecomFilter(req)).lean(),
+      Expense.find(expenseFilter).lean(),
+    ]);
+    if (!cleanGstin(business.gstin)) return res.status(400).json({ error: NO_GSTIN });
+    const fp = toReturnPeriod(new Date(`${req.query.endDate}T12:00:00.000Z`));
+    res.json({ fp, gstin: cleanGstin(business.gstin), ...buildGstr3b({ sellerGstin: business.gstin, sales, creditNotes, purchases, debitNotes, ecomSales, expenses }) });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// POST /api/reports/gst/gstr2b/match?startDate=&endDate=   body: the GSTR-2B JSON file
+// Compares the suppliers' invoices in GSTR-2B with the purchase bills here — see
+// utils/gstr2b.js. Nothing is saved.
+exports.matchGstr2b = async (req, res) => {
+  try {
+    const businessId = req.auth.businessId;
+    const twoB = parseGstr2b(req.body);
+    const { gstin } = await sellerProfile(businessId);
+    if (twoB.gstin && cleanGstin(gstin) && twoB.gstin !== cleanGstin(gstin)) {
+      return res.status(400).json({ error: `This GSTR-2B is for GSTIN ${twoB.gstin}, but your business GSTIN is ${cleanGstin(gstin)}.` });
+    }
+    // Period for "in books, not in 2B": the From–To given, else the 2B month.
+    let { startDate, endDate } = req.query;
+    if ((!startDate || !endDate) && /^\d{6}$/.test(twoB.period)) {
+      const m = Number(twoB.period.slice(0, 2));
+      const y = Number(twoB.period.slice(2));
+      startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+      endDate = `${y}-${String(m).padStart(2, '0')}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+    }
+    const allPurchases = await Purchase.find({ businessId }, 'supplier billDetails').lean();
+    const start = startDate ? new Date(`${startDate}T00:00:00.000`) : null;
+    const end = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+    const periodPurchases = allPurchases.filter((p) => {
+      const d = p.billDetails?.date ? new Date(p.billDetails.date) : null;
+      return d && (!start || d >= start) && (!end || d <= end);
+    });
+    res.json({ startDate, endDate, ...matchGstr2b({ twoB, allPurchases, periodPurchases }) });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
