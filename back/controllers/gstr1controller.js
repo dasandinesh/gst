@@ -13,6 +13,7 @@ const { buildGstr3b } = require('../utils/gstr3b');
 const Expense = require('../model/expensemodule');
 const { parseGstr2b, matchGstr2b } = require('../utils/gstr2b');
 const { parseEcomReport } = require('../utils/ecomReport');
+const { DEFAULT_FORMAT, parserFor, counterKey } = require('../utils/billNumberFormat');
 
 // Marketplace months that overlap the From–To period.
 const ecomFilter = (req) => {
@@ -44,12 +45,28 @@ const dateFilter = (req) => {
   return filter;
 };
 
+// A GSTR-1 file is for one return period ("fp", taken from the To date): one
+// month, or for quarterly (QRMP) filers one quarter. A range like 1 Aug – 30 Sep
+// would put August's data into September's return, so it is refused.
+const periodError = (req) => {
+  const { startDate, endDate } = req.query;
+  if (!startDate || !endDate) return 'Pick a From and To date for the return period.';
+  const [sy, sm] = startDate.split('-').map(Number);
+  const [ey, em] = endDate.split('-').map(Number);
+  if (startDate > endDate) return 'The From date is after the To date.';
+  if (sy === ey && sm === em) return '';
+  const quarterStart = Math.floor((em - 1) / 3) * 3 + 1;
+  if (sy === ey && sm === quarterStart) return '';
+  return 'From and To must be in the same month (monthly filers) or cover one quarter starting on its first month, e.g. 1 Jul – 30 Sep (quarterly filers). The GSTR-1 file is for a single return period.';
+};
+
 // GET /api/reports/gst/gstr1?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 // Returns { json, warnings, counts } — `json` is the file to upload on the GST
 // portal; warnings list bills the portal is likely to reject.
 exports.exportGstr1 = async (req, res) => {
   try {
-    if (!req.query.startDate || !req.query.endDate) return res.status(400).json({ error: 'Pick a From and To date for the return period.' });
+    const badPeriod = periodError(req);
+    if (badPeriod) return res.status(400).json({ error: badPeriod });
     const businessId = req.auth.businessId;
     const filter = dateFilter(req);
     const [business, sales, creditNotes] = await Promise.all([
@@ -79,7 +96,8 @@ exports.exportGstr1 = async (req, res) => {
 // The checklist to run before exporting: { issues, counts } — see utils/gstr1Checklist.js.
 exports.checkGstr1 = async (req, res) => {
   try {
-    if (!req.query.startDate || !req.query.endDate) return res.status(400).json({ error: 'Pick a From and To date for the return period.' });
+    const badPeriod = periodError(req);
+    if (badPeriod) return res.status(400).json({ error: badPeriod });
     const filter = dateFilter(req);
     const [business, sales, creditNotes, ecomSales] = await Promise.all([
       sellerProfile(req.auth.businessId),
@@ -216,6 +234,21 @@ const bumpCounters = async (businessId, numbers, prefix, counterName) => {
   )));
 };
 
+// Same for GST bills, whose number format is set in Invoice Settings.
+const bumpGstBillCounter = async (businessId, numbers) => {
+  const setting = await InvoiceSetting.findOne({ businessId }, 'gstBillFormat').sort({ isDefault: -1, createdAt: 1 });
+  const format = setting?.gstBillFormat || DEFAULT_FORMAT;
+  const parse = parserFor(format);
+  const highest = {};
+  numbers.forEach((n) => {
+    const p = parse(n);
+    if (!p) return;
+    const key = counterKey(businessId, format, p.fy);
+    highest[key] = Math.max(highest[key] || 0, p.seq);
+  });
+  await Promise.all(Object.entries(highest).map(([_id, seq]) => Counter.updateOne({ _id }, { $max: { seq } }, { upsert: true })));
+};
+
 // POST /api/reports/gst/gstr1/import[?preview=1]  body: the GSTR-1 JSON file.
 // Creates GST sale bills (B2B, B2CL) and credit notes (CDNR, CDNUR). Bills whose
 // number already exists are skipped, so importing the same file twice is safe.
@@ -275,7 +308,7 @@ exports.importGstr1 = async (req, res) => {
     if (sales.fresh.length) await GstSale.insertMany(sales.fresh, { ordered: false });
     if (notes.fresh.length) await CreditNote.insertMany(notes.fresh, { ordered: false });
     await Promise.all([
-      bumpCounters(businessId, sales.fresh.map((d) => d.billDetails.invoiceNumber), 'GB', 'gstsale'),
+      bumpGstBillCounter(businessId, sales.fresh.map((d) => d.billDetails.invoiceNumber)),
       bumpCounters(businessId, notes.fresh.map((d) => d.billDetails.creditNoteNumber), 'CN', 'creditnote'),
     ]);
 

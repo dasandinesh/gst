@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../../api';
 import '../accounts/accounts.css';
 import './adminusers.css';
+import { formatDate } from '../../dateFormat';
 
-const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : '—');
 
 // Platform-wide user list: every signed-up user, which business(es) they
 // belong to and with what role, and admin actions (disable/enable, delete).
@@ -111,7 +111,7 @@ const AdminUsers = () => {
                       <div key={b.businessId} className="admin-users-business">{b.businessName} <span className="admin-users-role">({b.role})</span></div>
                     ))}
                   </td>
-                  <td>{formatDate(user.createdAt)}</td>
+                  <td>{formatDate(user.createdAt, '—')}</td>
                   <td><span className={`admin-pill ${user.isDisabled ? 'admin-pill-disabled' : 'admin-pill-active'}`}>{user.isDisabled ? 'Disabled' : 'Active'}</span></td>
                   <td className="acc-row-actions">
                     <button type="button" disabled={busyId === user.id} onClick={() => toggleDisabled(user)}>

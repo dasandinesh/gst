@@ -1,3 +1,4 @@
+import { formatDate } from '../../dateFormat';
 // Shared helpers for the books-of-accounts pages (chart of accounts, trial
 // balance, account ledger). Balances come from /api/accounting as signed
 // Dr − Cr amounts: positive = debit balance, negative = credit balance.
@@ -20,7 +21,7 @@ export const financialYearStart = () => {
   return `${now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1}-04-01`;
 };
 
-export const displayDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN') : 'Opening');
+export const displayDate = (value) => formatDate(value, 'Opening');
 
 // Link to an account's ledger page, keeping the period (and optional party).
 export const ledgerHref = (account, { startDate, endDate, party } = {}) => {

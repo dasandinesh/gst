@@ -5,6 +5,7 @@ import '../accounts/accounts.css';
 import './books.css';
 import { amount, todayString } from './booksUtils';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
+import { formatDate } from '../../dateFormat';
 
 const GST_RATES = [0, 5, 12, 18, 28, 40];
 const firstOfMonth = () => `${todayString().slice(0, 8)}01`;
@@ -183,7 +184,7 @@ const Expenses = () => {
               ) : list.map((x) => (
                 <tr key={x._id}>
                   <td>{x.number}</td>
-                  <td>{new Date(x.date).toLocaleDateString('en-IN')}</td>
+                  <td>{formatDate(x.date)}</td>
                   <td>{accountName(x.account)}{x.note ? <div className="books-muted">{x.note}</div> : null}</td>
                   <td>{x.payee || '—'}{x.billNumber ? <div className="books-muted">Bill {x.billNumber}</div> : null}</td>
                   <td>{accountName(x.paidFrom)}</td>

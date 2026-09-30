@@ -3,6 +3,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import './sale.css';
 import axios from 'axios';
 import { renderBillHtml, buildBillsDocumentHtml } from './billTemplate';
+import { formatDate } from '../../dateFormat';
 
 // Local calendar date as yyyy-mm-dd (toISOString alone would shift the day for non-UTC zones).
 const todayString = () => {
@@ -1170,7 +1171,7 @@ const SaleEntry = () => {
                         <div className="sale-view-meta">
                             <div><span>Bill No.</span><strong>{viewOrderBill.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewOrderBill.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewOrderBill.billDetails?.date)}</strong></div>
+                            <div><span>Date</span><strong>{formatDate(viewOrderBill.billDetails?.date)}</strong></div>
                             <div><span>Status</span><strong>{viewOrderBill.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <table className="sale-view-table">
@@ -1222,7 +1223,7 @@ const SaleEntry = () => {
                         <div className="sale-view-meta">
                             <div><span>Bill No.</span><strong>{viewSale.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewSale.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewSale.billDetails?.date)}</strong></div>
+                            <div><span>Date</span><strong>{formatDate(viewSale.billDetails?.date)}</strong></div>
                             <div><span>Status</span><strong>{viewSale.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <table className="sale-view-table">

@@ -2,9 +2,10 @@ import React, { useCallback, useState } from 'react';
 import { fetchJson } from '../../api';
 import '../accounts/accounts.css';
 import './reports.css';
+import { formatDate } from '../../dateFormat';
 
 const money = (n) => Number(n || 0).toFixed(2);
-const displayDate = (value) => (value ? new Date(value).toLocaleDateString() : '—');
+const displayDate = (value) => formatDate(value, '—');
 
 const todayString = () => {
   const now = new Date();

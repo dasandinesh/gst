@@ -2,6 +2,7 @@ import React, { useRef, useState,useEffect, useCallback } from 'react';
 import { useForm, useFieldArray } from "react-hook-form";
 import './order.css';
 import axios from 'axios';
+import { formatDate } from '../../dateFormat';
 
 // Local calendar date as yyyy-mm-dd (toISOString alone would shift the day for non-UTC zones).
 const todayString = () => {
@@ -783,7 +784,7 @@ const OrderEntry = () => {
                         <div className="order-view-meta">
                             <div><span>Bill No.</span><strong>{viewOrder.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewOrder.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewOrder.billDetails?.date)}</strong></div>
+                            <div><span>Date</span><strong>{formatDate(viewOrder.billDetails?.date)}</strong></div>
                             <div><span>Status</span><strong>{viewOrder.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <table className="order-view-table">

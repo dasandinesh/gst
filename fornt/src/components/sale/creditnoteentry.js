@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchJson } from '../../api';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import './gstbillentry.css';
+import { formatDate } from '../../dateFormat';
 
 const REASONS = ['Sales Return', 'Post-Sale Discount', 'Deficiency in Goods/Services', 'Change in Place of Supply', 'Correction of Invoice', 'Other'];
 
@@ -496,7 +497,7 @@ const CreditNoteEntry = () => {
             </div>
             <div className="gst-view-meta">
               <div><span>Customer</span><strong>{viewNote.customer?.name}</strong></div>
-              <div><span>Date</span><strong>{toDateInput(viewNote.billDetails?.date)}</strong></div>
+              <div><span>Date</span><strong>{formatDate(viewNote.billDetails?.date)}</strong></div>
               <div><span>Against bill</span><strong>{viewNote.originalBill?.billNumber}</strong></div>
               <div><span>Reason</span><strong>{viewNote.billDetails?.reason}</strong></div>
               <div><span>Tax type</span><strong>{viewNote.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>

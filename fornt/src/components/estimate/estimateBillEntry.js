@@ -4,6 +4,7 @@ import '../sale/gstbillentry.css';
 import './estimateBillEntry.css';
 import { buildEstimateDocumentHtml, PAPER_WINDOW } from './estimateBillTemplate';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
+import { formatDate } from '../../dateFormat';
 
 const todayString = () => {
   const now = new Date();
@@ -479,7 +480,7 @@ const EstimateBillEntry = () => {
             </div>
             <div className="gst-view-meta">
               <div><span>Customer</span><strong>{viewBill.customer?.name}</strong></div>
-              <div><span>Date</span><strong>{toDateInput(viewBill.billDetails?.date)}</strong></div>
+              <div><span>Date</span><strong>{formatDate(viewBill.billDetails?.date)}</strong></div>
             </div>
             <table className="gst-view-table">
               <thead><tr><th>Product</th><th>Qty</th><th>Unit</th><th>Price</th><th>Amount</th></tr></thead>

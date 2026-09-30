@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray } from "react-hook-form";
 import './ordermobile.css';
 import axios from 'axios';
+import { formatDate } from '../../dateFormat';
 
 // Mobile-first order entry — same data/save logic as orderentry.js, but laid out as
 // single-column stacked cards instead of the desktop's side-by-side grid + wide table,
@@ -511,7 +512,7 @@ const OrderEntryMobile = () => {
                         <div className="om-modal-meta">
                             <div><span>Bill no.</span><strong>{viewOrder.billDetails?.billNumber || '—'}</strong></div>
                             <div><span>Customer</span><strong>{viewOrder.customer?.name || '—'}</strong></div>
-                            <div><span>Date</span><strong>{toDateInput(viewOrder.billDetails?.date)}</strong></div>
+                            <div><span>Date</span><strong>{formatDate(viewOrder.billDetails?.date)}</strong></div>
                             <div><span>Status</span><strong>{viewOrder.billDetails?.billed ? 'Billed' : 'Pending'}</strong></div>
                         </div>
                         <div className="om-product-list">

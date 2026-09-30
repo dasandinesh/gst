@@ -4,6 +4,7 @@ import { fetchJson } from '../../api';
 import '../accounts/accounts.css';
 import './reports.css';
 import EcomImport from './ecomImport';
+import { formatDate } from '../../dateFormat';
 
 const money = (n) => Number(n || 0).toFixed(2);
 const num = (v) => Number(v) || 0;
@@ -115,7 +116,7 @@ const firstOfMonth = () => {
 };
 
 const KIND_LABEL = { bill: 'GST bill', creditNote: 'Credit note', business: 'Your business' };
-const shortDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN') : '');
+const shortDate = (value) => formatDate(value);
 
 // Result of "Check before export": a summary line, then one row per problem, errors first.
 const Gstr1Checklist = ({ check }) => {

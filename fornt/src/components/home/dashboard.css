@@ -206,6 +206,80 @@
   padding: 8px 10px;
 }
 
+/* GST due-date reminders */
+.reminders-card { margin-bottom: 16px; }
+.reminders-card h2 { margin: 0 0 4px; font-size: 18px; color: #12352c; }
+.reminder-frequency { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #64748b; }
+.reminder-frequency select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #fff; }
+.reminder-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.reminder {
+  display: grid;
+  grid-template-columns: 28px minmax(150px, 220px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 13px;
+}
+.reminder-icon {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 13px;
+}
+.reminder-date { display: flex; flex-direction: column; gap: 2px; }
+.reminder-date strong { font-size: 14px; color: #0b0b0b; }
+.reminder-date span { font-size: 12px; color: #52514e; }
+.reminder-what { color: #1f2937; }
+.reminder-what strong { margin-right: 4px; }
+.reminder-link {
+  padding: 5px 12px; border: 1px solid #2c7159; border-radius: 6px;
+  color: #2c7159; font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.reminder-link:hover { background: #ecfdf5; }
+/* Status colours carry an icon + text label too, never colour alone. */
+.reminder-passed, .reminder-today { border-left-color: #d03b3b; background: #fef2f2; }
+.reminder-passed .reminder-icon, .reminder-today .reminder-icon { background: #d03b3b; color: #fff; }
+.reminder-passed .reminder-date span, .reminder-today .reminder-date span { color: #b91c1c; font-weight: 600; }
+.reminder-soon { border-left-color: #fab219; background: #fffbeb; }
+.reminder-soon .reminder-icon { background: #fab219; }
+.reminder-soon .reminder-date span { color: #92400e; font-weight: 600; }
+.reminder-upcoming { border-left-color: #cbd5e1; }
+@media (max-width: 640px) {
+  .reminder { grid-template-columns: 28px 1fr; }
+  .reminder-what, .reminder-link { grid-column: 2; justify-self: start; }
+}
+
+/* Sales vs purchases chart */
+.viz { margin-bottom: 24px; }
+.viz-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.viz-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; color: #0b0b0b; }
+.viz-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.viz-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.viz-note { font-size: 12px; color: #898781; }
+.viz-toggle { padding: 4px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; font-size: 12px; cursor: pointer; color: #334155; }
+.viz-plot { position: relative; }
+.viz-plot svg { width: 100%; height: auto; display: block; overflow: visible; }
+.viz-grid { stroke: #e1e0d9; stroke-width: 1; }
+.viz-baseline { stroke: #c3c2b7; stroke-width: 1; }
+.viz-tick { font-size: 11px; fill: #898781; font-variant-numeric: tabular-nums; }
+.viz-value { font-size: 11px; font-weight: 600; fill: #52514e; }
+.viz-hover-band { fill: #0b0b0b; opacity: 0.04; }
+.viz-empty { position: absolute; top: 40%; left: 0; right: 0; margin: 0; text-align: center; font-size: 13px; color: #898781; }
+.viz-tooltip {
+  position: absolute; top: 4px; transform: translateX(-50%);
+  min-width: 170px; padding: 8px 10px;
+  background: #fff; border: 1px solid rgba(11, 11, 11, 0.12); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  font-size: 12px; pointer-events: none; z-index: 2;
+}
+.viz-tooltip-title { font-weight: 700; margin-bottom: 4px; color: #0b0b0b; }
+.viz-tooltip-row { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 6px; color: #52514e; }
+.viz-tooltip-row strong { color: #0b0b0b; font-variant-numeric: tabular-nums; }
+.viz-num { text-align: right; font-variant-numeric: tabular-nums; }
+
 .backup-status {
   margin: 12px 0 0;
   padding: 8px 12px;

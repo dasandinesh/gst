@@ -6,9 +6,10 @@ import './gstbilllist.css';
 import { buildGstBillDocumentHtml, PAPER_WINDOW } from './gstBillTemplate';
 import { formatAddress, hasAddress } from '../common/shippingAddress';
 import { transportRows } from '../common/transportDetails';
+import { formatDate } from '../../dateFormat';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
-const displayDate = (value) => (value ? new Date(value).toLocaleDateString() : '—');
+const displayDate = (value) => formatDate(value, '—');
 
 const PAGE_SIZE = 20;
 const emptyFilters = { q: '', startDate: '', endDate: '', taxType: '' };

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../../api';
 import '../accounts/accounts.css';
 import './reports.css';
+import { formatDate } from '../../dateFormat';
 
 const amt = (v) => Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -88,7 +89,7 @@ const Gstr3b = () => {
           </label>
         </div>
         <p className="acc-status">
-          Period: <strong>{period.label}</strong> ({period.startDate} to {period.endDate}) · due by <strong>{period.due.toLocaleDateString('en-IN')}</strong>
+          Period: <strong>{period.label}</strong> ({period.startDate} to {period.endDate}) · due by <strong>{formatDate(period.due)}</strong>
           {quarterly ? ' (22nd or 24th depending on your state)' : ''}
           {data ? ` · GSTIN ${data.gstin}` : ''}
         </p>

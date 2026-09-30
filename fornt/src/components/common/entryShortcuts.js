@@ -18,6 +18,8 @@ export const useEntryShortcuts = (actions) => {
   useEffect(() => {
     const onKeyDown = (e) => {
       const a = ref.current || {};
+      // Chrome fires keydown with no `key` when a datalist suggestion or autofill is picked.
+      if (typeof e.key !== 'string') return;
       const key = e.key.toLowerCase();
       const ctrl = (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey;
       if (e.key === 'F2' && a.onNew) {

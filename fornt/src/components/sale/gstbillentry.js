@@ -10,6 +10,7 @@ import {
 import { TransportFields, emptyTransport, transportFromBill, hasTransport, transportRows } from '../common/transportDetails';
 import usePreferences from '../common/usePreferences';
 import { useEntryShortcuts, ShortcutHint } from '../common/entryShortcuts';
+import { formatDate } from '../../dateFormat';
 
 const todayString = () => {
   const now = new Date();
@@ -699,7 +700,7 @@ const GstBillEntry = () => {
               {bills.length === 0 ? <tr><td colSpan="6" className="gst-table-state">{billsStatus || 'No GST bills found.'}</td></tr> : bills.map((bill) => (
                 <tr key={bill._id}>
                   <td className="gst-row-name">{bill.billDetails?.invoiceNumber}</td>
-                  {/* <td>{toDateInput(bill.billDetails?.date)}</td> */}
+                  {/* <td>{formatDate(bill.billDetails?.date)}</td> */}
                   <td>{bill.customer?.name}</td>
                   {/* <td>{bill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST+SGST'}</td> */}
                   <td>{money(bill.billDetails?.grandTotal)}</td>
@@ -762,7 +763,7 @@ const GstBillEntry = () => {
             </div>
             <div className="gst-view-meta">
               <div><span>Customer</span><strong>{viewBill.customer?.name}</strong></div>
-              <div><span>Date</span><strong>{toDateInput(viewBill.billDetails?.date)}</strong></div>
+              <div><span>Date</span><strong>{formatDate(viewBill.billDetails?.date)}</strong></div>
               <div><span>Tax type</span><strong>{viewBill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
               <div><span>Place of supply</span><strong>{viewBill.billDetails?.placeOfSupply || '—'}</strong></div>
               {hasAddress(viewBill.shippingAddress) && viewBill.shippingAddress.source !== 'billing' && <div><span>Ship to</span><strong>{viewBill.shippingAddress.contactName ? `${viewBill.shippingAddress.contactName}, ` : ''}{formatAddress(viewBill.shippingAddress)}</strong></div>}

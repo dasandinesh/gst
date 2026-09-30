@@ -5,6 +5,7 @@ import '../accounts/accounts.css';
 import './books.css';
 import { amount, todayString } from './booksUtils';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
+import { formatDate } from '../../dateFormat';
 
 const firstOfMonth = () => `${todayString().slice(0, 8)}01`;
 const toDate = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
@@ -203,7 +204,7 @@ const Journals = () => {
               ) : list.map((j) => (
                 <tr key={j._id}>
                   <td>{j.number}</td>
-                  <td>{new Date(j.date).toLocaleDateString('en-IN')}</td>
+                  <td>{formatDate(j.date)}</td>
                   <td>{j.narration || '—'}</td>
                   <td className="books-muted">
                     {j.lines.map((l, i) => (

@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { fetchJson } from '../../api';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import './accounts.css';
+import { formatDate } from '../../dateFormat';
 
 const MODES = ['cash', 'bank', 'upi', 'cheque'];
 
@@ -152,7 +153,7 @@ const PaymentEntry = () => {
             <div class="cell">${cells}</div>
           </div>
           <h2>PAYMENT VOUCHER</h2>
-          <div class="row"><span>No: <b>${payment.payment_no || ''}</b></span><span>Date: <b>${toDateInput(payment.date)}</b></span></div>
+          <div class="row"><span>No: <b>${payment.payment_no || ''}</b></span><span>Date: <b>${formatDate(payment.date)}</b></span></div>
           <div class="row"><span>Paid to</span><b>${payment.supplier?.name || ''}</b></div>
           <div class="row"><span>Mode</span><b>${(payment.mode || '').toUpperCase()}</b></div>
           ${payment.note ? `<div class="row"><span>Note</span><b>${payment.note}</b></div>` : ''}
@@ -256,7 +257,7 @@ const PaymentEntry = () => {
               ) : payments.map((p) => (
                 <tr key={p._id}>
                   <td>{p.payment_no || '—'}</td>
-                  <td>{toDateInput(p.date)}</td>
+                  <td>{formatDate(p.date)}</td>
                   <td>{p.supplier?.name || '—'}</td>
                   <td>{p.mode || '—'}</td>
                   <td>{p.note || '—'}</td>

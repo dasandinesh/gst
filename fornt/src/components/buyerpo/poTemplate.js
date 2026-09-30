@@ -4,14 +4,7 @@
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { GST_STYLE, PAPER, PAPER_WINDOW, numberToWordsIndian } from '../sale/gstBillTemplate';
-
-const toDateInput = (value) => {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  parsed.setMinutes(parsed.getMinutes() - parsed.getTimezoneOffset());
-  return parsed.toISOString().split('T')[0];
-};
+import { formatDate } from '../../dateFormat';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
@@ -80,8 +73,8 @@ export function PoDocument({ po, shop = {}, customer = null }) {
         <table className="detail-table">
           <tbody>
             <tr><td className="k">Buyer's PO No.</td><td>{b.poNumber || ''}</td></tr>
-            <tr><td className="k">PO Date</td><td>{toDateInput(b.date)}</td></tr>
-            <tr><td className="k">Delivery by</td><td>{toDateInput(b.deliveryDate) || '—'}</td></tr>
+            <tr><td className="k">PO Date</td><td>{formatDate(b.date)}</td></tr>
+            <tr><td className="k">Delivery by</td><td>{formatDate(b.deliveryDate) || '—'}</td></tr>
             <tr><td className="k">PoS</td><td>{b.placeOfSupply || '—'}</td></tr>
             <tr><td className="k">Payment Terms</td><td>{b.paymentTerms || '—'}</td></tr>
             {b.notes ? <tr><td className="k">Remark</td><td>{b.notes}</td></tr> : null}

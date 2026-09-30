@@ -9,6 +9,7 @@ import {
 } from '../common/shippingAddress';
 import usePreferences from '../common/usePreferences';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
+import { formatDate } from '../../dateFormat';
 
 // Buyer's purchase order: records what a customer has ordered, with their PO number.
 // No sale is booked — the server never changes stock or customer balance for it.
@@ -587,7 +588,7 @@ export const PoViewModal = ({ po, onClose, onPrint, onEdit, onDelete, onStatus, 
         </div>
         <div className="gst-view-meta">
           <div><span>Customer</span><strong>{po.customer?.name}</strong></div>
-          <div><span>PO date</span><strong>{toDateInput(b.date)}</strong></div>
+          <div><span>PO date</span><strong>{formatDate(b.date)}</strong></div>
           <div><span>Delivery by</span><strong>{toOptionalDateInput(b.deliveryDate) || '—'}</strong></div>
           <div><span>Status</span><strong>{po.status}</strong></div>
           <div><span>Tax type</span><strong>{b.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>

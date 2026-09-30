@@ -5,14 +5,7 @@ import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { GST_STYLE, PAPER, PAPER_WINDOW, numberToWordsIndian } from '../sale/gstBillTemplate';
 import { modeLabel, docLabel } from '../common/transportDetails';
-
-const toDateInput = (value) => {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  parsed.setMinutes(parsed.getMinutes() - parsed.getTimezoneOffset());
-  return parsed.toISOString().split('T')[0];
-};
+import { formatDate } from '../../dateFormat';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
@@ -92,14 +85,14 @@ export function DcDocument({ challan, shop = {}, customer = null }) {
         <table className="detail-table">
           <tbody>
             <tr><td className="k">Challan No.</td><td>{b.challanNumber || ''}</td></tr>
-            <tr><td className="k">Dated</td><td>{toDateInput(b.date)}</td></tr>
+            <tr><td className="k">Dated</td><td>{formatDate(b.date)}</td></tr>
             <tr><td className="k">Purpose</td><td>{b.reason || '—'}</td></tr>
             <tr><td className="k">PoS</td><td>{b.placeOfSupply || '—'}</td></tr>
             <tr><td className="k">Vehicle No.</td><td>{t.vehicleNumber || '—'}</td></tr>
             <tr><td className="k">Driver</td><td>{[t.driverName, t.driverPhone].filter(Boolean).join(' / ') || '—'}</td></tr>
             {t.mode && t.mode !== 'road' ? <tr><td className="k">Mode</td><td>{modeLabel(t.mode)}</td></tr> : null}
             {t.transporterName || t.transporterId ? <tr><td className="k">Transporter</td><td>{[t.transporterName, t.transporterId].filter(Boolean).join(' – ')}</td></tr> : null}
-            {t.docNumber ? <tr><td className="k">{docLabel(t.mode)}</td><td>{t.docNumber}{t.docDate ? ` dt. ${toDateInput(t.docDate)}` : ''}</td></tr> : null}
+            {t.docNumber ? <tr><td className="k">{docLabel(t.mode)}</td><td>{t.docNumber}{t.docDate ? ` dt. ${formatDate(t.docDate)}` : ''}</td></tr> : null}
             {b.notes ? <tr><td className="k">Remark</td><td>{b.notes}</td></tr> : null}
           </tbody>
         </table>

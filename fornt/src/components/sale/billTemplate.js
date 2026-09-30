@@ -1,3 +1,4 @@
+import { formatDate } from '../../dateFormat';
 // The printable bill template — letterhead, item table, totals — lives here on its
 // own so it can be redesigned for a customer without touching Sale/Order Entry's
 // data logic. `renderBillHtml` builds one bill's HTML; `buildBillsDocumentHtml`
@@ -5,14 +6,6 @@
 //
 // To change how a bill looks: edit the markup in `renderBillHtml` and/or the rules
 // in `BILL_STYLE` below. Nothing else in the app needs to change.
-
-const toDateInput = (value) => {
-    if (!value) return '';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '';
-    parsed.setMinutes(parsed.getMinutes() - parsed.getTimezoneOffset());
-    return parsed.toISOString().split('T')[0];
-};
 
 const money = (n) => Number(n || 0).toFixed(2);
 const has = (v) => v !== undefined && v !== null && v !== '';
@@ -73,7 +66,7 @@ export const renderBillHtml = (record, shop = {}, customer = null) => {
                     <tr><td colspan="6" class="meta">
                         <div class="meta-row">
                             <div>To: <b>${record.customer?.name || ''}</b></div>
-                            <div>Dt: <b>${toDateInput(bill.date)}</b>&nbsp;&nbsp;&nbsp;No: <b>${bill.billNumber || ''}</b></div>
+                            <div>Dt: <b>${formatDate(bill.date)}</b>&nbsp;&nbsp;&nbsp;No: <b>${bill.billNumber || ''}</b></div>
                         </div>
                     </td></tr>
                     <tr class="cols">

@@ -5,9 +5,10 @@ import '../sale/gstbillentry.css';
 import '../sale/gstbilllist.css';
 import { DcViewModal } from './dcEntry';
 import { printDc } from './dcTemplate';
+import { formatDate } from '../../dateFormat';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
-const displayDate = (value) => (value ? new Date(value).toLocaleDateString() : '—');
+const displayDate = (value) => formatDate(value, '—');
 
 const PAGE_SIZE = 20;
 const emptyFilters = { q: '', startDate: '', endDate: '', status: '' };

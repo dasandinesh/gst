@@ -10,6 +10,7 @@ import {
 import { TransportFields, emptyTransport as emptyEwayTransport, transportFromBill, transportRows } from '../common/transportDetails';
 import usePreferences from '../common/usePreferences';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
+import { formatDate } from '../../dateFormat';
 
 // Delivery challan: goods leave with a document but no sale is booked — the server
 // never changes stock or customer balance for it. It can later be converted into a
@@ -597,7 +598,7 @@ export const DcViewModal = ({ dc, onClose, onPrint, onEdit, onDelete, onConvert 
         </div>
         <div className="gst-view-meta">
           <div><span>Customer</span><strong>{dc.customer?.name}</strong></div>
-          <div><span>Date</span><strong>{toDateInput(b.date)}</strong></div>
+          <div><span>Date</span><strong>{formatDate(b.date)}</strong></div>
           <div><span>Purpose</span><strong>{b.reason}</strong></div>
           <div><span>Status</span><strong>{dc.status}{dc.invoice?.invoiceNumber ? ` (${dc.invoice.invoiceNumber})` : ''}</strong></div>
           <div><span>Tax type</span><strong>{b.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>

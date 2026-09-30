@@ -1,14 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../../api';
 import './accounts.css';
+import { formatDate } from '../../dateFormat';
 
-const toDateInput = (value) => {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().split('T')[0];
-};
 const money = (n) => Number(n || 0).toFixed(2);
 
 const CustomerLedger = () => {
@@ -45,7 +39,7 @@ const CustomerLedger = () => {
     const cells = [shop.phone, shop.phone_2].filter(Boolean).map((p) => `Cell : ${p}`).join(' &nbsp; ');
     const rows = ledger.entries.map((e) => `
       <tr>
-        <td>${toDateInput(e.date)}</td>
+        <td>${formatDate(e.date)}</td>
         <td>${e.particulars}</td>
         <td class="r">${e.debit ? money(e.debit) : ''}</td>
         <td class="r">${e.credit ? money(e.credit) : ''}</td>
@@ -130,7 +124,7 @@ const CustomerLedger = () => {
                 <tr><td /><td><b>Opening balance</b></td><td /><td className="num" /><td className="num" /><td className="num">{money(ledger.opening)}</td></tr>
                 {ledger.entries.map((e, i) => (
                   <tr key={i}>
-                    <td>{toDateInput(e.date)}</td>
+                    <td>{formatDate(e.date)}</td>
                     <td>{e.particulars}</td>
                     <td>{e.ref || '—'}</td>
                     <td className="num">{e.debit ? money(e.debit) : ''}</td>

@@ -221,7 +221,6 @@ const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], ecomSale
   // Marketplace (e-commerce operator) sales: already net of returns, B2C only.
   // B2CS rows are tagged with the operator (typ 'E' + etin); Table 14 gets one
   // row per operator; HSN goes into the B2C HSN table.
-  const supeco = {};
   ecomSales.forEach((e) => {
     (e.rows || []).forEach((r) => {
       if (!num(r.rate)) {
@@ -237,12 +236,6 @@ const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], ecomSale
       row.camt += num(r.cgst);
       row.samt += num(r.sgst);
     });
-    if (!supeco[e.etin]) supeco[e.etin] = { etin: e.etin, suppval: 0, igst: 0, cgst: 0, sgst: 0, cess: 0 };
-    const t = supeco[e.etin];
-    t.suppval += num(e.totals?.taxableValue);
-    t.igst += num(e.totals?.igst);
-    t.cgst += num(e.totals?.cgst);
-    t.sgst += num(e.totals?.sgst);
     (e.hsn || []).forEach((h) => {
       const code = String(h.hsnCode || '').trim();
       if (!code || code === '—') { missingHsn.add(`marketplace ${e.etin}`); return; }
@@ -298,6 +291,16 @@ const buildGstr1 = ({ business, sales, creditNotes, originalSales = [], ecomSale
   if (hsnB2b.length || hsnB2c.length) json.hsn = { hsn_b2b: hsnB2b, hsn_b2c: hsnB2c };
   if (docDet.length) json.doc_issue = { doc_det: docDet };
   // Table 14(a): supplies made through e-commerce operators who collect TCS (section 52).
+  // Totalled from the rounded B2CS 'E' rows so the two tables agree to the paisa.
+  const supeco = {};
+  b2csRows.filter((r) => r.typ === 'E').forEach((r) => {
+    if (!supeco[r.etin]) supeco[r.etin] = { etin: r.etin, suppval: 0, igst: 0, cgst: 0, sgst: 0, cess: 0 };
+    const t = supeco[r.etin];
+    t.suppval += num(r.txval);
+    t.igst += num(r.iamt);
+    t.cgst += num(r.camt);
+    t.sgst += num(r.samt);
+  });
   const supecoRows = Object.values(supeco).map((t) => ({
     etin: t.etin, suppval: round2(t.suppval), igst: round2(t.igst), cgst: round2(t.cgst), sgst: round2(t.sgst), cess: 0,
   }));

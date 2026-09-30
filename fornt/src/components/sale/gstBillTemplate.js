@@ -8,14 +8,7 @@
 // a section: edit the JSX inside GstBillDocument.
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
-const toDateInput = (value) => {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  parsed.setMinutes(parsed.getMinutes() - parsed.getTimezoneOffset());
-  return parsed.toISOString().split('T')[0];
-};
-
+import { formatDate } from '../../dateFormat';
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 // Indian numbering (lakh/crore) amount-in-words, for the invoice footer.
 const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -345,18 +338,18 @@ export function GstBillDocument({ bill, shop = {}, customer = null, showHsnSumma
           <tbody>
             <tr>
               <td className="kv"><b>Invoice No:</b> <br></br> {b.invoiceNumber || ''}</td>
-              <td className="kv"><b>Dated:</b> <br></br> {toDateInput(b.date)}</td>
+              <td className="kv"><b>Dated:</b> <br></br> {formatDate(b.date)}</td>
             </tr>
             {b.deliveryChallanNumber ? (
               <tr>
                 <td className="kv"><b>DC No:</b> <br></br>{b.deliveryChallanNumber}</td>
-                <td className="kv"><b>DC Date:</b><br></br> {toDateInput(b.deliveryChallanDate) || '—'}</td>
+                <td className="kv"><b>DC Date:</b><br></br> {formatDate(b.deliveryChallanDate) || '—'}</td>
               </tr>
             ) : null}
             {b.purchaseOrderNumber ? (
               <tr>
                 <td className="kv"><b>Buyer's PO No:</b> <br></br>{b.purchaseOrderNumber}</td>
-                <td className="kv"><b>PO Date:</b><br></br> {toDateInput(b.purchaseOrderDate) || '—'}</td>
+                <td className="kv"><b>PO Date:</b><br></br> {formatDate(b.purchaseOrderDate) || '—'}</td>
               </tr>
             ) : null}
             {/* Transport: printed only when a vehicle number or transporter ID is filled in. */}

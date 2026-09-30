@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchJson } from '../../api';
+import { Link } from 'react-router-dom';
 import './dashboard.css';
+import { formatDate } from '../../dateFormat';
+import SalesChart from './salesChart';
+import { upcomingDeadlines } from './gstDueDates';
 
 const CHECK_INTERVAL_MS = 15000;
 
 const money = (n) => `₹${Number(n || 0).toFixed(2)}`;
-const displayDate = (value) => (value ? new Date(value).toLocaleDateString() : '—');
+const displayDate = (value) => formatDate(value, '—');
 
 // Same "start of this month → today" range used by the GST report page, so the
 // numbers here line up with what that page shows for the same period.
@@ -37,6 +41,79 @@ const StatusLight = ({ label, state, detail }) => (
   </div>
 );
 
+// Last `count` calendar months, oldest first: [{ label, startDate, endDate }].
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const lastMonths = (count) => {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (count - 1 - i), 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    return { label: `${MONTHS[m]} ${String(y).slice(-2)}`, startDate: `${y}-${pad(m + 1)}-01`, endDate: `${y}-${pad(m + 1)}-${pad(lastDay)}` };
+  });
+};
+
+// Filing frequency for the reminders is a per-browser preference (the app doesn't store it).
+const FREQ_KEY = 'dashboard.gstQuarterly';
+const readQuarterly = () => { try { return localStorage.getItem(FREQ_KEY) === '1'; } catch { return false; } };
+const saveQuarterly = (on) => { try { localStorage.setItem(FREQ_KEY, on ? '1' : '0'); } catch { /* storage blocked */ } };
+
+const REMINDER_ICON = { passed: '!', today: '!', soon: '⏰', upcoming: '📅' };
+const reminderText = (d) => {
+  if (d.status === 'passed') return `Due date passed ${-d.daysLeft} day(s) ago — file now if not done yet (late fee & interest apply)`;
+  if (d.status === 'today') return 'Due today';
+  return `Due in ${d.daysLeft} day(s)`;
+};
+
+const GstReminders = ({ stateCode }) => {
+  const [quarterly, setQuarterly] = useState(readQuarterly);
+  const deadlines = upcomingDeadlines({ quarterly, stateCode });
+  const changeFrequency = (e) => {
+    const on = e.target.value === 'q';
+    setQuarterly(on);
+    saveQuarterly(on);
+  };
+  return (
+    <section className="dashboard-card reminders-card">
+      <header className="dashboard-header">
+        <div>
+          <p className="dashboard-eyebrow">Reminders</p>
+          <h2>GST return due dates</h2>
+          <p>Last 15 days and next 45 days. Dates can be extended by government notification — check the GST portal.</p>
+        </div>
+        <label className="reminder-frequency">
+          <span>I file</span>
+          <select value={quarterly ? 'q' : 'm'} onChange={changeFrequency}>
+            <option value="m">Monthly</option>
+            <option value="q">Quarterly (QRMP)</option>
+          </select>
+        </label>
+      </header>
+      {deadlines.length === 0 ? (
+        <p className="dashboard-empty">No returns due in this window.</p>
+      ) : (
+        <ul className="reminder-list">
+          {deadlines.map((d) => (
+            <li key={`${d.form}-${d.date.toISOString()}`} className={`reminder reminder-${d.status}`}>
+              <span className="reminder-icon" aria-hidden="true">{REMINDER_ICON[d.status]}</span>
+              <div className="reminder-date">
+                <strong>{formatDate(d.date)}</strong>
+                <span>{reminderText(d)}</span>
+              </div>
+              <div className="reminder-what">
+                <strong>{d.form}</strong> {d.what}
+              </div>
+              {d.link && <Link className="reminder-link" to={d.link}>Open</Link>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
 const MetricCard = ({ label, value, hint, tone }) => (
   <div className={`metric-card${tone ? ` metric-card-${tone}` : ''}`}>
     <div className="metric-label">{label}</div>
@@ -59,6 +136,32 @@ const Dashboard = () => {
   const [metrics, setMetrics] = useState(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState('');
+
+  const [chartRows, setChartRows] = useState(null);
+  const [chartError, setChartError] = useState('');
+  const [stateCode, setStateCode] = useState(''); // seller's GST state code, for the quarterly 3B date
+
+  // One GST-report call per month, so the chart matches the GST report page.
+  const loadChart = useCallback(async () => {
+    setChartError('');
+    try {
+      const months = lastMonths(6);
+      const reports = await Promise.all(months.map((m) => fetchJson(`/api/reports/gst?startDate=${m.startDate}&endDate=${m.endDate}`)));
+      setChartRows(months.map((m, i) => ({
+        label: m.label,
+        sales: Number(reports[i]?.outward?.totals?.taxableValue || 0),
+        purchases: Number(reports[i]?.inward?.totals?.taxableValue || 0),
+      })));
+    } catch (error) {
+      setChartError(error.message || 'Unable to load the chart.');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchJson('/api/invoice-settings/active')
+      .then((s) => setStateCode(String(s?.gstin || '').trim().slice(0, 2)))
+      .catch(() => {});
+  }, []);
 
   const checkHealth = useCallback(async () => {
     setChecking(true);
@@ -122,6 +225,8 @@ const Dashboard = () => {
   }, [checkHealth]);
 
   useEffect(() => { loadMetrics(); }, [loadMetrics]);
+  useEffect(() => { loadChart(); }, [loadChart]);
+  const refreshAll = () => { loadMetrics(); loadChart(); };
 
   const downloadBackup = async () => {
     setDownloading(true);
@@ -192,6 +297,8 @@ const Dashboard = () => {
 
   return (
     <main className="dashboard-page">
+      <GstReminders stateCode={stateCode} />
+
       <section className="dashboard-card">
         <header className="dashboard-header">
           <div>
@@ -199,7 +306,7 @@ const Dashboard = () => {
             <h1>Business at a glance</h1>
             <p>{firstOfMonth()} to {todayString()} · updates when you refresh</p>
           </div>
-          <button type="button" className="dashboard-refresh" onClick={loadMetrics} disabled={metricsLoading}>
+          <button type="button" className="dashboard-refresh" onClick={refreshAll} disabled={metricsLoading}>
             {metricsLoading ? 'Loading…' : 'Refresh'}
           </button>
         </header>
@@ -221,6 +328,10 @@ const Dashboard = () => {
                 tone={metrics.lowStock.length ? 'warn' : undefined}
               />
             </div>
+
+            <h2 className="dashboard-subheading">Sales vs purchases — last 6 months</h2>
+            {chartError && <p className="backup-status backup-status-error">{chartError}</p>}
+            {chartRows ? <SalesChart rows={chartRows} /> : !chartError && <p className="dashboard-empty">Loading chart…</p>}
 
             <div className="dashboard-columns">
               <div>

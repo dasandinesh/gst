@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchJson } from '../../api';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import '../sale/gstbillentry.css';
+import { formatDate } from '../../dateFormat';
 
 const todayString = () => {
   const now = new Date();
@@ -461,7 +462,7 @@ const PurchaseBillEntry = () => {
             </div>
             <div className="gst-view-meta">
               <div><span>Supplier</span><strong>{viewBill.supplier?.name}</strong></div>
-              <div><span>Date</span><strong>{toDateInput(viewBill.billDetails?.date)}</strong></div>
+              <div><span>Date</span><strong>{formatDate(viewBill.billDetails?.date)}</strong></div>
               <div><span>Tax type</span><strong>{viewBill.billDetails?.taxType === 'IGST' ? 'IGST' : 'CGST + SGST'}</strong></div>
               <div><span>Place of supply</span><strong>{viewBill.billDetails?.placeOfSupply || '—'}</strong></div>
               {viewBill.billDetails?.supplierInvoiceNumber && <div><span>Supplier bill no.</span><strong>{viewBill.billDetails.supplierInvoiceNumber}</strong></div>}

@@ -2,7 +2,9 @@ const GstSale = require('../model/salesmodule');
 const Counter = require('../model/countermodule');
 const Customer = require('../model/customermodule');
 const Product = require('../model/productmodule');
+const InvoiceSetting = require('../model/invoice_settings');
 const { financialYearLabel } = require('../utils/financialYear');
+const { formatBillNumber, counterKey } = require('../utils/billNumberFormat');
 const { cleanBillShippingAddress } = require('../model/addressSchema');
 const { cleanTransport } = require('../utils/transport');
 
@@ -143,8 +145,15 @@ exports.createGstSale = async (req, res) => {
     data.businessId = businessId;
     if (!data.billDetails.invoiceNumber) {
       const fy = financialYearLabel(data.billDetails.date);
-      const seq = await Counter.next(`${businessId}:gstsale:${fy}`);
-      data.billDetails.invoiceNumber = `GB/${fy}/${String(seq).padStart(4, '0')}`;
+      // Number format from the invoice setting bills print from (the default one, else the first).
+      const setting = await InvoiceSetting.findOne({ businessId }, 'gstBillFormat').sort({ isDefault: -1, createdAt: 1 });
+      const format = setting?.gstBillFormat;
+      // Skip numbers already taken (e.g. after switching back to an older format).
+      for (let tries = 0; tries < 100; tries += 1) {
+        const seq = await Counter.next(counterKey(businessId, format, fy));
+        data.billDetails.invoiceNumber = formatBillNumber(format, fy, seq);
+        if (!(await GstSale.exists({ businessId, 'billDetails.invoiceNumber': data.billDetails.invoiceNumber }))) break;
+      }
     }
     const bal = await applyCustomerBalance(businessId, data.customer.name, saleImpact(data.billDetails));
     data.billDetails.openingBalance = bal.before;

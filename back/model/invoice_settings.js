@@ -23,6 +23,8 @@ const invoice_settingSchema = new mongoose.Schema({
   // financial year) should use — lets a business continuing from paper bills
   // or another system pick up numbering where it left off instead of at 1.
   gstBillStartNumber: { type: Number, default: 1, min: 1 },
+  // How auto-generated GST bill numbers look — see utils/billNumberFormat.js.
+  gstBillFormat: { type: String, default: 'GB/{FY}/{NO}', trim: true },
 
 }, { timestamps: true });
 

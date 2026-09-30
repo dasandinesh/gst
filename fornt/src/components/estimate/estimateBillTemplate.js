@@ -6,14 +6,7 @@
 // by the "Print" buttons, which open a popup window and write the HTML into it).
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
-
-const toDateInput = (value) => {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  parsed.setMinutes(parsed.getMinutes() - parsed.getTimezoneOffset());
-  return parsed.toISOString().split('T')[0];
-};
+import { formatDate } from '../../dateFormat';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 
@@ -130,7 +123,7 @@ export function EstimateDocument({ bill, shop = {}, customer = null }) {
               <table className="meta-table" style={{ border: 'none' }}>
                 <tbody>
                   <tr><td className="k">Estimate No.</td><td>{b.estimateNumber || ''}</td></tr>
-                  <tr><td className="k">Dated</td><td>{toDateInput(b.date)}</td></tr>
+                  <tr><td className="k">Dated</td><td>{formatDate(b.date)}</td></tr>
                   {b.notes ? <tr><td className="k">Remark</td><td>{b.notes}</td></tr> : null}
                 </tbody>
               </table>

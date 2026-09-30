@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../../api';
 import '../../components/cutomer/customerlist.css';
+import { formatDate } from '../../dateFormat';
 
 const currency = (value) => `₹${Number(value || 0).toFixed(2)}`;
-const displayDate = (value) => value ? new Date(value).toLocaleDateString() : '—';
+const displayDate = (value) => formatDate(value, '—');
 
 const OrderList = () => {
   const [orders, setOrders] = useState([]);

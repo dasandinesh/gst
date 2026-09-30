@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { fetchJson } from '../../api';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import './accounts.css';
+import { formatDate } from '../../dateFormat';
 
 const MODES = ['cash', 'bank', 'upi', 'cheque'];
 
@@ -152,7 +153,7 @@ const ReceiptEntry = () => {
             <div class="cell">${cells}</div>
           </div>
           <h2>RECEIPT</h2>
-          <div class="row"><span>No: <b>${receipt.receipt_no || ''}</b></span><span>Date: <b>${toDateInput(receipt.date)}</b></span></div>
+          <div class="row"><span>No: <b>${receipt.receipt_no || ''}</b></span><span>Date: <b>${formatDate(receipt.date)}</b></span></div>
           <div class="row"><span>Received from</span><b>${receipt.customer?.name || ''}</b></div>
           <div class="row"><span>Mode</span><b>${(receipt.mode || '').toUpperCase()}</b></div>
           ${receipt.note ? `<div class="row"><span>Note</span><b>${receipt.note}</b></div>` : ''}
@@ -256,7 +257,7 @@ const ReceiptEntry = () => {
               ) : receipts.map((r) => (
                 <tr key={r._id}>
                   <td>{r.receipt_no || '—'}</td>
-                  <td>{toDateInput(r.date)}</td>
+                  <td>{formatDate(r.date)}</td>
                   <td>{r.customer?.name || '—'}</td>
                   <td>{r.mode || '—'}</td>
                   <td>{r.note || '—'}</td>

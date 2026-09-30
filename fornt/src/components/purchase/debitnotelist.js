@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../../api';
 import '../sale/gstbillentry.css';
 import '../sale/gstbilllist.css';
+import { formatDate } from '../../dateFormat';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
-const displayDate = (value) => (value ? new Date(value).toLocaleDateString() : '—');
+const displayDate = (value) => formatDate(value, '—');
 
 const PAGE_SIZE = 20;
 const emptyFilters = { q: '', startDate: '', endDate: '' };

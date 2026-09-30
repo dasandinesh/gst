@@ -2,9 +2,19 @@
 const Counter = require('../model/countermodule');
 const { financialYearLabel } = require('../utils/financialYear');
 const { normalizeGstin } = require('../utils/gstin');
+const { DEFAULT_FORMAT, formatError, counterKey } = require('../utils/billNumberFormat');
 
 // Validates/upper-cases the GSTIN only when the request actually sends one.
-const withCleanGstin = (body = {}) => ('gstin' in body ? { ...body, gstin: normalizeGstin(body.gstin) } : body);
+// Also checks a bill number format when one is sent (throws with the reason).
+const withCleanGstin = (body = {}) => {
+    const out = 'gstin' in body ? { ...body, gstin: normalizeGstin(body.gstin) } : { ...body };
+    if ('gstBillFormat' in out) {
+        out.gstBillFormat = String(out.gstBillFormat || DEFAULT_FORMAT).trim();
+        const bad = formatError(out.gstBillFormat);
+        if (bad) throw new Error(bad);
+    }
+    return out;
+};
 
 exports.createInvoiceSetting = async (req, res) => {
     try {
@@ -80,25 +90,30 @@ exports.setDefaultInvoiceSetting = async (req, res) => {
     }
 };
 
-// Sets the serial number the NEXT auto-generated GST bill (in the current
-// financial year) will use, by seeding the same counter gstsalecontroller
-// reads from — so it takes effect immediately without touching past bills.
+// Saves the GST bill number format and the serial number the NEXT
+// auto-generated GST bill will use, by seeding the same counter
+// gstsalecontroller reads from — so it takes effect immediately without
+// touching past bills.
 exports.setGstBillStartNumber = async (req, res) => {
     try {
         const startNumber = Number(req.body.startNumber);
         if (!Number.isInteger(startNumber) || startNumber < 1) {
             return res.status(400).json({ error: 'Starting number must be a whole number of 1 or more.' });
         }
+        const format = String(req.body.format ?? DEFAULT_FORMAT).trim();
+        const badFormat = formatError(format);
+        if (badFormat) return res.status(400).json({ error: badFormat });
+
         const setting = await InvoiceSetting.findOneAndUpdate(
             { _id: req.params.id, businessId: req.auth.businessId },
-            { gstBillStartNumber: startNumber },
+            { gstBillStartNumber: startNumber, gstBillFormat: format },
             { new: true, runValidators: true }
         );
         if (!setting) return res.status(404).json({ error: 'Invoice setting not found.' });
 
         const fy = financialYearLabel();
         await Counter.findByIdAndUpdate(
-            `${req.auth.businessId}:gstsale:${fy}`,
+            counterKey(req.auth.businessId, format, fy),
             { seq: startNumber - 1 },
             { upsert: true }
         );
