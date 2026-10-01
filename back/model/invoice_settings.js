@@ -25,6 +25,8 @@ const invoice_settingSchema = new mongoose.Schema({
   gstBillStartNumber: { type: Number, default: 1, min: 1 },
   // How auto-generated GST bill numbers look — see utils/billNumberFormat.js.
   gstBillFormat: { type: String, default: 'GB/{FY}/{NO}', trim: true },
+  // Digits the running number is padded to: 0 = as is (1, 2, 3), 4 = 0001.
+  gstBillDigits: { type: Number, default: 4, min: 0, max: 8 },
 
 }, { timestamps: true });
 

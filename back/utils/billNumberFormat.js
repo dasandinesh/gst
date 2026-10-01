@@ -1,32 +1,48 @@
-// GST bill number format, set in Invoice Settings. A template with two tokens:
-//   {FY} → financial year, e.g. 26-27      {NO} → running number, 4 digits (0010)
-// e.g. "GB/{FY}/{NO}" → GB/26-27/0010, "INV-{NO}" → INV-0010, "SK{FY}/{NO}" → SK26-27/0010.
+// GST bill number format, set in Invoice Settings: any text plus two tokens,
+//   {FY} → financial year, e.g. 26-27      {NO} → the running number
+// and a digits setting for the running number: 0 = as is (1, 2, 3), 4 = 0001.
+//   "GB/{FY}/{NO}", 4 → GB/26-27/0010     "INV-{NO}", 0 → INV-10
+//   "{NO}", 0         → 10                "{NO}", 4    → 0010
+// Without {NO} the number goes at the end ("INV-" → INV-10); an empty format is just the number.
 // GST allows at most 16 characters: letters, digits, '/' and '-'.
 const DEFAULT_FORMAT = 'GB/{FY}/{NO}';
+const DEFAULT_DIGITS = 4;
+const MAX_DIGITS = 8;
 const DOC_NUMBER_RE = /^[A-Za-z0-9/-]{1,16}$/;
 
-const formatBillNumber = (format, fy, seq) => String(format || DEFAULT_FORMAT)
-  .replace(/\{FY\}/g, fy)
-  .replace(/\{NO\}/g, String(seq).padStart(4, '0'));
+const cleanFormat = (format) => {
+  const f = String(format ?? '').trim();
+  return f.includes('{NO}') ? f : `${f}{NO}`;
+};
+const cleanDigits = (digits) => {
+  const d = Number(digits);
+  return Number.isInteger(d) && d >= 0 && d <= MAX_DIGITS ? d : DEFAULT_DIGITS;
+};
 
-// '' when fine, else what is wrong. Checked with a 5-digit number so the
-// format still fits once the series passes 9999.
-const formatError = (format) => {
-  const f = String(format || '').trim();
-  if (!f) return 'Enter a bill number format.';
-  if ((f.match(/\{NO\}/g) || []).length !== 1) return 'The format must contain {NO} exactly once — that is where the running number goes.';
+// format/digits undefined (settings saved before this option existed) → GB/{FY}/{NO}, 4 digits.
+const formatBillNumber = (format, fy, seq, digits) => cleanFormat(format ?? DEFAULT_FORMAT)
+  .replace(/\{FY\}/g, fy)
+  .replace(/\{NO\}/g, String(seq).padStart(cleanDigits(digits ?? DEFAULT_DIGITS), '0'));
+
+// '' when fine, else what is wrong. Checked with a 5-digit running number so
+// the format still fits once the series passes 9999.
+const formatError = (format, digits = DEFAULT_DIGITS) => {
+  const d = Number(digits);
+  if (!Number.isInteger(d) || d < 0 || d > MAX_DIGITS) return `Number digits must be 0 to ${MAX_DIGITS}.`;
+  const f = cleanFormat(format);
+  if ((f.match(/\{NO\}/g) || []).length !== 1) return 'Use {NO} only once — that is where the running number goes.';
   if (/\{(?!FY\}|NO\})/.test(f)) return 'Only {FY} and {NO} can be used inside { }.';
-  const sample = formatBillNumber(f, '26-27', 10000);
+  const sample = formatBillNumber(f, '26-27', 10000, d);
   if (!DOC_NUMBER_RE.test(sample)) {
-    return `"${sample}" is not allowed: GST bill numbers can have at most 16 characters, using only letters, digits, / and -.`;
+    return `"${sample}" is not allowed: GST bill numbers can have at most 16 characters, using only letters, digits, / and - (no spaces).`;
   }
   return '';
 };
 
-// Regex that reads a number made by this format back into { fy, seq }
-// (fy is null when the format has no {FY}).
+// Reads a number made by this format back into { fy, seq }
+// (fy is null when the format has no {FY}); null when it doesn't match.
 const parserFor = (format) => {
-  const f = String(format || DEFAULT_FORMAT);
+  const f = cleanFormat(format ?? DEFAULT_FORMAT);
   const hasFy = f.includes('{FY}');
   const pattern = f.split(/(\{FY\}|\{NO\})/).map((part) => {
     if (part === '{FY}') return '(\\d{2}-\\d{2})';
@@ -44,10 +60,10 @@ const parserFor = (format) => {
 };
 
 // Counter the running number comes from. With {FY} it restarts every financial
-// year; without it the numbers would repeat (INV-0001 again next April) and bill
+// year; without it the numbers would repeat (INV-1 again next April) and bill
 // numbers must stay unique, so it runs on across years.
-const counterKey = (businessId, format, fy) => (String(format || DEFAULT_FORMAT).includes('{FY}')
+const counterKey = (businessId, format, fy) => (cleanFormat(format ?? DEFAULT_FORMAT).includes('{FY}')
   ? `${businessId}:gstsale:${fy}`
   : `${businessId}:gstsale:all`);
 
-module.exports = { DEFAULT_FORMAT, formatBillNumber, formatError, parserFor, counterKey };
+module.exports = { DEFAULT_FORMAT, DEFAULT_DIGITS, formatBillNumber, formatError, parserFor, counterKey, cleanFormat };

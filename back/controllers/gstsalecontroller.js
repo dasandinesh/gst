@@ -146,12 +146,12 @@ exports.createGstSale = async (req, res) => {
     if (!data.billDetails.invoiceNumber) {
       const fy = financialYearLabel(data.billDetails.date);
       // Number format from the invoice setting bills print from (the default one, else the first).
-      const setting = await InvoiceSetting.findOne({ businessId }, 'gstBillFormat').sort({ isDefault: -1, createdAt: 1 });
+      const setting = await InvoiceSetting.findOne({ businessId }, 'gstBillFormat gstBillDigits').sort({ isDefault: -1, createdAt: 1 });
       const format = setting?.gstBillFormat;
       // Skip numbers already taken (e.g. after switching back to an older format).
       for (let tries = 0; tries < 100; tries += 1) {
         const seq = await Counter.next(counterKey(businessId, format, fy));
-        data.billDetails.invoiceNumber = formatBillNumber(format, fy, seq);
+        data.billDetails.invoiceNumber = formatBillNumber(format, fy, seq, setting?.gstBillDigits);
         if (!(await GstSale.exists({ businessId, 'billDetails.invoiceNumber': data.billDetails.invoiceNumber }))) break;
       }
     }

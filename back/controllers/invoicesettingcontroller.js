@@ -2,16 +2,19 @@
 const Counter = require('../model/countermodule');
 const { financialYearLabel } = require('../utils/financialYear');
 const { normalizeGstin } = require('../utils/gstin');
-const { DEFAULT_FORMAT, formatError, counterKey } = require('../utils/billNumberFormat');
+const { DEFAULT_FORMAT, DEFAULT_DIGITS, formatError, counterKey, cleanFormat } = require('../utils/billNumberFormat');
 
 // Validates/upper-cases the GSTIN only when the request actually sends one.
-// Also checks a bill number format when one is sent (throws with the reason).
+// Also checks the bill number format / digits when sent (throws with the reason).
 const withCleanGstin = (body = {}) => {
     const out = 'gstin' in body ? { ...body, gstin: normalizeGstin(body.gstin) } : { ...body };
-    if ('gstBillFormat' in out) {
-        out.gstBillFormat = String(out.gstBillFormat || DEFAULT_FORMAT).trim();
-        const bad = formatError(out.gstBillFormat);
+    if ('gstBillFormat' in out || 'gstBillDigits' in out) {
+        const format = cleanFormat(out.gstBillFormat ?? DEFAULT_FORMAT);
+        const digits = Number(out.gstBillDigits ?? DEFAULT_DIGITS);
+        const bad = formatError(format, digits);
         if (bad) throw new Error(bad);
+        out.gstBillFormat = format;
+        out.gstBillDigits = digits;
     }
     return out;
 };
@@ -100,13 +103,14 @@ exports.setGstBillStartNumber = async (req, res) => {
         if (!Number.isInteger(startNumber) || startNumber < 1) {
             return res.status(400).json({ error: 'Starting number must be a whole number of 1 or more.' });
         }
-        const format = String(req.body.format ?? DEFAULT_FORMAT).trim();
-        const badFormat = formatError(format);
+        const format = cleanFormat(req.body.format ?? DEFAULT_FORMAT);
+        const digits = Number(req.body.digits ?? DEFAULT_DIGITS);
+        const badFormat = formatError(format, digits);
         if (badFormat) return res.status(400).json({ error: badFormat });
 
         const setting = await InvoiceSetting.findOneAndUpdate(
             { _id: req.params.id, businessId: req.auth.businessId },
-            { gstBillStartNumber: startNumber, gstBillFormat: format },
+            { gstBillStartNumber: startNumber, gstBillFormat: format, gstBillDigits: digits },
             { new: true, runValidators: true }
         );
         if (!setting) return res.status(404).json({ error: 'Invoice setting not found.' });

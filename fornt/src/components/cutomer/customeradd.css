@@ -23,6 +23,12 @@
 .primary-button:disabled { cursor: wait; opacity: .7; }
 .secondary-button { color: #285749; background: #fff; border: 1px solid #9bb5ac; }
 .secondary-button:hover { background: #f1f7f4; }
+/* Invoice Settings → GST bill numbering: quick-pick examples and the live preview. */
+.bill-format-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 0; font-size: 13px; color: #5e706a; }
+.bill-format-presets button { padding: 6px 12px; font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; }
+.bill-format-presets button.is-active { color: #fff; background: #237553; border-color: #237553; }
+.bill-format-preview { margin: 14px 0 0; font-size: 14px; color: #5e706a; }
+.bill-format-preview strong { margin: 0 6px; color: #12352c; }
 /* Hint + "Copy from address above" button at the top of the Shipping address section. */
 .customer-ship-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 0 14px; font-size: 13px; color: #5e706a; }
 .customer-ship-hint button { flex: 0 0 auto; padding: 7px 12px; font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; }
