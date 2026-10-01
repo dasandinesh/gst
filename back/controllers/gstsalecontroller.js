@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const GstSale = require('../model/salesmodule');
 const Counter = require('../model/countermodule');
 const Customer = require('../model/customermodule');
@@ -143,14 +144,19 @@ exports.createGstSale = async (req, res) => {
     if (!data.items.length) return res.status(400).json({ error: 'Add at least one product before saving the bill.' });
     const businessId = req.auth.businessId;
     data.businessId = businessId;
+    // Bill series (invoice setting): the one chosen on the bill page, else the default.
+    const seriesId = req.body.billDetails?.seriesId;
+    const setting = (seriesId && mongoose.isValidObjectId(seriesId)
+      ? await InvoiceSetting.findOne({ _id: seriesId, businessId }, 'gstBillFormat gstBillDigits ownCounter')
+      : null)
+      || await InvoiceSetting.findOne({ businessId }, 'gstBillFormat gstBillDigits ownCounter').sort({ isDefault: -1, createdAt: 1 });
+    if (setting) data.billDetails.seriesId = setting._id;
     if (!data.billDetails.invoiceNumber) {
       const fy = financialYearLabel(data.billDetails.date);
-      // Number format from the invoice setting bills print from (the default one, else the first).
-      const setting = await InvoiceSetting.findOne({ businessId }, 'gstBillFormat gstBillDigits').sort({ isDefault: -1, createdAt: 1 });
       const format = setting?.gstBillFormat;
       // Skip numbers already taken (e.g. after switching back to an older format).
       for (let tries = 0; tries < 100; tries += 1) {
-        const seq = await Counter.next(counterKey(businessId, format, fy));
+        const seq = await Counter.next(counterKey(businessId, format, fy, setting));
         data.billDetails.invoiceNumber = formatBillNumber(format, fy, seq, setting?.gstBillDigits);
         if (!(await GstSale.exists({ businessId, 'billDetails.invoiceNumber': data.billDetails.invoiceNumber }))) break;
       }
@@ -173,6 +179,9 @@ exports.getGstSales = async (req, res) => {
     }
     if (req.query.taxType === 'IGST' || req.query.taxType === 'CGST_SGST') {
       filter['billDetails.taxType'] = req.query.taxType;
+    }
+    if (req.query.seriesId && mongoose.isValidObjectId(req.query.seriesId)) {
+      filter['billDetails.seriesId'] = req.query.seriesId;
     }
     if (req.query.startDate || req.query.endDate) {
       filter['billDetails.date'] = {};
@@ -220,6 +229,8 @@ exports.updateGstSale = async (req, res) => {
     data.billDetails.openingBalance = bal.before;
     data.billDetails.closingBalance = bal.after;
     data.billDetails.invoiceNumber = prev.billDetails?.invoiceNumber || data.billDetails.invoiceNumber;
+    // A bill stays in the series it was numbered in.
+    if (prev.billDetails?.seriesId) data.billDetails.seriesId = prev.billDetails.seriesId;
 
     const sale = await GstSale.findOneAndUpdate({ _id: req.params.id, businessId }, data, { new: true, runValidators: true });
     res.json(sale);

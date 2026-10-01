@@ -10,6 +10,7 @@ import {
 import usePreferences from '../common/usePreferences';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, withLogo } from '../../shopSettings';
 
 // Buyer's purchase order: records what a customer has ordered, with their PO number.
 // No sale is booked — the server never changes stock or customer balance for it.
@@ -106,7 +107,7 @@ const PoEntry = () => {
   useEffect(() => {
     fetchJson('/api/customers').then(setCustomerList).catch(() => setCustomerList([]));
     fetchJson('/api/products').then(setProductList).catch(() => setProductList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(withLogo).then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
     customerNameRef.current?.focus();
   }, []);
 

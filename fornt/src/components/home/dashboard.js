@@ -5,6 +5,7 @@ import './dashboard.css';
 import { formatDate } from '../../dateFormat';
 import SalesChart from './salesChart';
 import { upcomingDeadlines } from './gstDueDates';
+import { getActiveSetting } from '../../shopSettings';
 
 const CHECK_INTERVAL_MS = 15000;
 
@@ -41,19 +42,9 @@ const StatusLight = ({ label, state, detail }) => (
   </div>
 );
 
-// Last `count` calendar months, oldest first: [{ label, startDate, endDate }].
+// "2026-09" → "Sep 26" for the chart axis.
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const lastMonths = (count) => {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (count - 1 - i), 1);
-    const y = d.getFullYear();
-    const m = d.getMonth();
-    const lastDay = new Date(y, m + 1, 0).getDate();
-    return { label: `${MONTHS[m]} ${String(y).slice(-2)}`, startDate: `${y}-${pad(m + 1)}-01`, endDate: `${y}-${pad(m + 1)}-${pad(lastDay)}` };
-  });
-};
+const monthLabel = (ym) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(2, 4)}`;
 
 // Filing frequency for the reminders is a per-browser preference (the app doesn't store it).
 const FREQ_KEY = 'dashboard.gstQuarterly';
@@ -141,24 +132,19 @@ const Dashboard = () => {
   const [chartError, setChartError] = useState('');
   const [stateCode, setStateCode] = useState(''); // seller's GST state code, for the quarterly 3B date
 
-  // One GST-report call per month, so the chart matches the GST report page.
+  // One call: the server adds up each month (same figures as the GST report page).
   const loadChart = useCallback(async () => {
     setChartError('');
     try {
-      const months = lastMonths(6);
-      const reports = await Promise.all(months.map((m) => fetchJson(`/api/reports/gst?startDate=${m.startDate}&endDate=${m.endDate}`)));
-      setChartRows(months.map((m, i) => ({
-        label: m.label,
-        sales: Number(reports[i]?.outward?.totals?.taxableValue || 0),
-        purchases: Number(reports[i]?.inward?.totals?.taxableValue || 0),
-      })));
+      const rows = await fetchJson('/api/reports/gst/monthly?months=6');
+      setChartRows(rows.map((r) => ({ label: monthLabel(r.month), sales: Number(r.sales || 0), purchases: Number(r.purchases || 0) })));
     } catch (error) {
       setChartError(error.message || 'Unable to load the chart.');
     }
   }, []);
 
   useEffect(() => {
-    fetchJson('/api/invoice-settings/active')
+    getActiveSetting()
       .then((s) => setStateCode(String(s?.gstin || '').trim().slice(0, 2)))
       .catch(() => {});
   }, []);

@@ -7,6 +7,8 @@ router.use(protect);
 
 // GET /api/reports/gst?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 router.get('/', controller.getGstSummary);
+// GET /api/reports/gst/monthly?months=6 — monthly totals for the dashboard chart
+router.get('/monthly', controller.getMonthlyTotals);
 
 // GSTR-1 JSON in the GST portal's offline-upload format.
 router.get('/gstr1', gstr1.exportGstr1);

@@ -14,8 +14,11 @@ router.get('/', invoiceSettingController.getInvoiceSettings);
 // The single setting bills print from (must be registered before '/:id')
 router.get('/active', invoiceSettingController.getActiveInvoiceSetting);
 
-// Get an invoice setting by ID
+// Get an invoice setting by ID (without the logo)
 router.get('/:id', invoiceSettingController.getInvoiceSettingById);
+
+// Just the logo, fetched when printing
+router.get('/:id/logo', invoiceSettingController.getInvoiceSettingLogo);
 
 // Mark an invoice setting as the default (used when more than one exists)
 router.put('/:id/set-default', invoiceSettingController.setDefaultInvoiceSetting);

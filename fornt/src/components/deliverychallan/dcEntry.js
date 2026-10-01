@@ -11,6 +11,7 @@ import { TransportFields, emptyTransport as emptyEwayTransport, transportFromBil
 import usePreferences from '../common/usePreferences';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, withLogo } from '../../shopSettings';
 
 // Delivery challan: goods leave with a document but no sale is booked — the server
 // never changes stock or customer balance for it. It can later be converted into a
@@ -111,7 +112,7 @@ const DcEntry = () => {
     fetchJson('/api/products').then(setProductList).catch(() => setProductList([]));
     fetchJson('/api/drivers').then(setDriverList).catch(() => setDriverList([]));
     fetchJson('/api/vehicles').then(setVehicleList).catch(() => setVehicleList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(withLogo).then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
     customerNameRef.current?.focus();
   }, []);
 

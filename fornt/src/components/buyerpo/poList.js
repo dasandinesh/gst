@@ -6,6 +6,7 @@ import '../sale/gstbilllist.css';
 import { PoViewModal } from './poEntry';
 import { printPo } from './poTemplate';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, withLogo } from '../../shopSettings';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 const displayDate = (value) => formatDate(value, '—');
@@ -32,7 +33,7 @@ const PoList = () => {
 
   useEffect(() => {
     fetchJson('/api/customers').then(setCustomerList).catch(() => setCustomerList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(withLogo).then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
   }, []);
 
   const loadPos = useCallback(async (activeFilters = filters, activePage = page) => {

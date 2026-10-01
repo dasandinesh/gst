@@ -27,6 +27,11 @@ const invoice_settingSchema = new mongoose.Schema({
   gstBillFormat: { type: String, default: 'GB/{FY}/{NO}', trim: true },
   // Digits the running number is padded to: 0 = as is (1, 2, 3), 4 = 0001.
   gstBillDigits: { type: Number, default: 4, min: 0, max: 8 },
+  // Bill series: a business can have several invoice settings (e.g. two trade
+  // names under one GSTIN), each with its own letterhead and numbering. The
+  // first keeps the business-wide counter; later ones get their own (see
+  // utils/billNumberFormat.js counterKey).
+  ownCounter: { type: Boolean, default: false },
 
 }, { timestamps: true });
 

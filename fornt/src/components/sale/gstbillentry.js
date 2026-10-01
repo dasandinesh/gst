@@ -11,6 +11,7 @@ import { TransportFields, emptyTransport, transportFromBill, hasTransport, trans
 import usePreferences from '../common/usePreferences';
 import { useEntryShortcuts, ShortcutHint } from '../common/entryShortcuts';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, getSeriesList, settingForBill } from '../../shopSettings';
 
 const todayString = () => {
   const now = new Date();
@@ -64,6 +65,10 @@ const emptyBillMeta = {
   transport: emptyTransport, notes: '', cash: 0, credit: 0,
 };
 
+// Last bill series picked on this computer (only used when there are 2+ series).
+const SERIES_KEY = 'gstBill.seriesId';
+const readLastSeries = () => { try { return localStorage.getItem(SERIES_KEY) || ''; } catch { return ''; } };
+
 // Everything shown until the saved Entry Settings load (and if they can't).
 const defaultPrefs = { showBillList: true, showReferences: true, showTransport: true, showPayment: true, showRemark: true };
 
@@ -81,6 +86,10 @@ const GstBillEntry = () => {
   const [customerList, setCustomerList] = useState([]);
   const [productList, setProductList] = useState([]);
   const [invoiceSetting, setInvoiceSetting] = useState(null);
+  // Bill series (Invoice Settings → Advanced); empty for the usual single-series business.
+  const [seriesList, setSeriesList] = useState([]);
+  const [seriesId, setSeriesId] = useState(readLastSeries);
+  const [editingSeriesId, setEditingSeriesId] = useState('');
   // Which optional sections to show (Master → Entry Settings).
   const prefs = usePreferences('gstBillEntry', defaultPrefs);
 
@@ -175,8 +184,22 @@ const GstBillEntry = () => {
   useEffect(() => {
     fetchJson('/api/customers').then(setCustomerList).catch(() => setCustomerList([]));
     fetchJson('/api/products').then(setProductList).catch(() => setProductList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));    customerNameRef.current?.focus();
+    getActiveSetting()
+      .then((s) => {
+        setInvoiceSetting(s);
+        // The series dropdown only exists for businesses with 2+ bill series.
+        if (s?.seriesCount > 1) getSeriesList().then(setSeriesList).catch(() => setSeriesList([]));
+      })
+      .catch(() => setInvoiceSetting(null));
+    customerNameRef.current?.focus();
   }, []);
+
+  // Chosen series: the last one used on this computer, else the default.
+  const activeSeriesId = seriesList.some((s) => s._id === seriesId) ? seriesId : (invoiceSetting?._id || '');
+  const chooseSeries = (id) => {
+    setSeriesId(id);
+    try { localStorage.setItem(SERIES_KEY, id); } catch { /* storage blocked */ }
+  };
 
   // Enter moves focus to the next field instead of submitting the form.
   const focusNextOnEnter = (e, nextRef) => {
@@ -319,6 +342,7 @@ const GstBillEntry = () => {
 
   const resetForm = () => {
     setEditingId(null);
+    setEditingSeriesId('');
     setSourceDc(null);
     setSourcePo(null);
     setCustomer(emptyCustomer);
@@ -333,6 +357,7 @@ const GstBillEntry = () => {
 
   const loadBillForEdit = (bill) => {
     setEditingId(bill._id);
+    setEditingSeriesId(bill.billDetails?.seriesId || '');
     setCustomer({
       name: bill.customer?.name || '',
       customerId: bill.customer?.customerId || '',
@@ -389,7 +414,8 @@ const GstBillEntry = () => {
       // Snapshot even "same as billing", so later customer edits don't change this invoice.
       shippingAddress: shipping.source === 'billing' ? billingAsShipping(customerRecord) : shipping,
       items: lines,
-      billDetails: { ...billMeta },
+      // seriesId only matters with 2+ bill series; the server uses the default otherwise.
+      billDetails: { ...billMeta, seriesId: seriesList.length > 1 ? activeSeriesId : undefined },
     };
     try {
       const saved = editingId
@@ -455,7 +481,9 @@ const GstBillEntry = () => {
     try {
       const bill = typeof billOrLoader === 'function' ? await billOrLoader() : billOrLoader;
       const customerRecord = customerList.find((c) => c.name?.toLowerCase() === (bill.customer?.name || '').trim().toLowerCase());
-      const html = await buildGstBillDocumentHtml(bill, invoiceSetting || {}, customerRecord || null, size, { showHsnSummary: includeHsnSummary });
+      // The bill's own series letterhead (logo fetched once, then reused).
+      const shop = await settingForBill(bill).catch(() => invoiceSetting);
+      const html = await buildGstBillDocumentHtml(bill, shop || {}, customerRecord || null, size, { showHsnSummary: includeHsnSummary });
       win.document.open();
       win.document.write(html);
       win.document.close();
@@ -509,6 +537,20 @@ const GstBillEntry = () => {
               <datalist id="gst-customer-list">{customerList.map((c) => <option key={c._id} value={c.name} />)}</datalist>
 
               <div className="gst-input-field textbox-middle"><label>GSTIN:</label><br /><input type="text" className="gst-text-input gst-compact-input" value={customer.gstin} onChange={(e) => setCustomer((c) => ({ ...c, gstin: e.target.value }))} /></div>
+              {seriesList.length > 1 && (
+                <div className="gst-input-field">
+                  <label>Series:</label><br />
+                  <select
+                    className="gst-text-input"
+                    value={editingId ? (editingSeriesId || invoiceSetting?._id || '') : activeSeriesId}
+                    onChange={(e) => chooseSeries(e.target.value)}
+                    disabled={Boolean(editingId)}
+                    title={editingId ? 'A saved bill stays in its series' : 'Letterhead and bill number series'}
+                  >
+                    {seriesList.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="gst-input-field gst-narrow"><label>Bill No:</label><br /><input type="text" className="gst-text-input gst-compact-input" placeholder="Auto" value={billMeta.invoiceNumber} onChange={(e) => setBillMeta((m) => ({ ...m, invoiceNumber: e.target.value }))} disabled={Boolean(editingId)} /></div>
               <div className="gst-input-field gst-narrow"><label>Bill Date:</label><br /><input type="date" className="gst-text-input gst-compact-input" value={billMeta.date} onChange={(e) => setBillMeta((m) => ({ ...m, date: e.target.value }))} /></div>
               <div className="gst-input-field">

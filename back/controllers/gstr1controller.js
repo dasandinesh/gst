@@ -14,6 +14,7 @@ const Expense = require('../model/expensemodule');
 const { parseGstr2b, matchGstr2b } = require('../utils/gstr2b');
 const { parseEcomReport } = require('../utils/ecomReport');
 const { DEFAULT_FORMAT, parserFor, counterKey } = require('../utils/billNumberFormat');
+const { financialYearLabel } = require('../utils/financialYear');
 
 // Marketplace months that overlap the From–To period.
 const ecomFilter = (req) => {
@@ -29,7 +30,7 @@ const ecomFilter = (req) => {
 const sellerProfile = async (businessId) => {
   const business = await Business.findById(businessId);
   if (cleanGstin(business?.gstin)) return { gstin: business.gstin, state: business.state };
-  const settings = await InvoiceSetting.find({ businessId, gstin: { $nin: [null, ''] } }).sort({ isDefault: -1, createdAt: 1 }).limit(1);
+  const settings = await InvoiceSetting.find({ businessId, gstin: { $nin: [null, ''] } }, 'gstin state').sort({ isDefault: -1, createdAt: 1 }).limit(1);
   if (settings.length) return { gstin: settings[0].gstin, state: settings[0].state };
   return { gstin: '', state: business?.state || '' };
 };
@@ -234,17 +235,23 @@ const bumpCounters = async (businessId, numbers, prefix, counterName) => {
   )));
 };
 
-// Same for GST bills, whose number format is set in Invoice Settings.
+// Same for GST bills, whose number format is set per bill series in Invoice
+// Settings: each imported number advances the counter of the series it fits.
 const bumpGstBillCounter = async (businessId, numbers) => {
-  const setting = await InvoiceSetting.findOne({ businessId }, 'gstBillFormat').sort({ isDefault: -1, createdAt: 1 });
-  const format = setting?.gstBillFormat || DEFAULT_FORMAT;
-  const parse = parserFor(format);
+  const settings = await InvoiceSetting.find({ businessId }, 'gstBillFormat ownCounter').sort({ isDefault: -1, createdAt: 1 });
+  const series = (settings.length ? settings : [{}]).map((s) => {
+    const format = s.gstBillFormat || DEFAULT_FORMAT;
+    return { s, format, parse: parserFor(format) };
+  });
   const highest = {};
   numbers.forEach((n) => {
-    const p = parse(n);
-    if (!p) return;
-    const key = counterKey(businessId, format, p.fy);
-    highest[key] = Math.max(highest[key] || 0, p.seq);
+    for (const { s, format, parse } of series) {
+      const p = parse(n);
+      if (!p) continue;
+      const key = counterKey(businessId, format, p.fy || financialYearLabel(), s);
+      highest[key] = Math.max(highest[key] || 0, p.seq);
+      return;
+    }
   });
   await Promise.all(Object.entries(highest).map(([_id, seq]) => Counter.updateOne({ _id }, { $max: { seq } }, { upsert: true })));
 };

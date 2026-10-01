@@ -4,6 +4,7 @@ import '../sale/gstbillentry.css';
 import '../sale/gstbilllist.css';
 import { buildEstimateDocumentHtml, PAPER_WINDOW } from './estimateBillTemplate';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, withLogo } from '../../shopSettings';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 const displayDate = (value) => formatDate(value, '—');
@@ -29,7 +30,7 @@ const EstimateBillList = () => {
 
   useEffect(() => {
     fetchJson('/api/estimate-customers').then(setCustomerList).catch(() => setCustomerList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(withLogo).then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
   }, []);
 
   const loadBills = useCallback(async (activeFilters = filters, activePage = page) => {

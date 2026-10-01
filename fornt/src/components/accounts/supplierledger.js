@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../../api';
 import './accounts.css';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting } from '../../shopSettings';
 
 const money = (n) => Number(n || 0).toFixed(2);
 
@@ -14,7 +15,7 @@ const SupplierLedger = () => {
 
   useEffect(() => {
     fetchJson('/api/suppliers').then(setSuppliers).catch(() => {});
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
   }, []);
 
   const load = useCallback(async () => {

@@ -4,6 +4,7 @@ import { fetchJson } from '../../api';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import './accounts.css';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting } from '../../shopSettings';
 
 const MODES = ['cash', 'bank', 'upi', 'cheque'];
 
@@ -52,7 +53,7 @@ const PaymentEntry = () => {
 
   useEffect(() => {
     fetchJson('/api/suppliers').then(setSuppliers).catch(() => {});
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
   }, []);
 
   const total = useMemo(() => payments.reduce((t, p) => t + Number(p.amount || 0), 0), [payments]);

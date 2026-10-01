@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { fetchJson } from '../../api';
+import { clearShopSettingsCache } from '../../shopSettings';
 import '../../components/cutomer/customeradd.css';
 import '../../components/cutomer/customerlist.css';
 
-// Bills print from exactly one invoice setting. This screen therefore behaves as a
-// singleton editor:
-//   - no setting yet  -> show the create form
-//   - one setting      -> show it for editing, with a delete option
-//   - more than one    -> warn and let the user delete extras until only one remains
+// Shop details printed on bills + GST bill numbering. Most businesses have one
+// setting; a business with two trade names under one GSTIN can add more "bill
+// series" (Advanced, at the bottom) — each with its own letterhead and numbers
+// (e.g. 1, 2, 3 and A1, A2, A3). Series tabs only appear once there are two.
 const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
 // GST bill number format — same rules as back/utils/billNumberFormat.js:
@@ -52,12 +52,73 @@ const defaults = {
   name: '', gstin: '', phone: '', phone_2: '', door: '', street: '', area: '',
   district: '', state: '', pincode: '', header: '', fooder: '',
 };
+const pickDetails = (s) => Object.fromEntries(Object.keys(defaults).map((k) => [k, s?.[k] ?? '']));
+
+// Format, digits and start number, with the quick picks and a live preview.
+const NumberingFields = ({ format, setFormat, digits, setDigits, startNumber, setStartNumber }) => (
+  <>
+    <div className="customer-form-grid">
+      <label className="customer-field">
+        <span>Bill number format</span>
+        <input
+          type="text"
+          placeholder="e.g. INV-{NO}  or leave empty for 1, 2, 3"
+          value={format}
+          onChange={(e) => setFormat(e.target.value)}
+        />
+        <small>
+          Type any letters you like. {'{NO}'} = the running number, {'{FY}'} = financial year ({currentFy()}).
+          No {'{NO}'}? The number goes at the end. Empty = just the number. With {'{FY}'} the number restarts every April.
+        </small>
+      </label>
+      <label className="customer-field">
+        <span>Number digits</span>
+        <select value={digits} onChange={(e) => setDigits(Number(e.target.value))}>
+          {DIGIT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </label>
+      {setStartNumber && (
+        <label className="customer-field">
+          <span>Start next GST bill at</span>
+          <input type="number" min="1" step="1" value={startNumber} onChange={(e) => setStartNumber(e.target.value)} />
+        </label>
+      )}
+    </div>
+
+    <div className="bill-format-presets">
+      <span>Quick pick:</span>
+      {BILL_PRESETS.map(([f, d]) => (
+        <button
+          key={`${f}|${d}`}
+          type="button"
+          className={`secondary-button${cleanBillFormat(format) === f && digits === d ? ' is-active' : ''}`}
+          onClick={() => { setFormat(f); setDigits(d); }}
+        >
+          {formatBillNumber(f, 1, d)}
+        </button>
+      ))}
+    </div>
+
+    {billFormatError(format, digits) ? (
+      <p className="form-status error">{billFormatError(format, digits)}</p>
+    ) : (
+      <p className="bill-format-preview">
+        Next bills will be: {[0, 1, 2].map((i) => (
+          <strong key={i}>{formatBillNumber(format, Number(startNumber || 1) + i, digits)}</strong>
+        ))} …
+      </p>
+    )}
+  </>
+);
 
 const InvoiceSetting = () => {
   const [settings, setSettings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState({ type: '', message: '' });
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({ defaultValues: defaults });
+
+  const [selectedId, setSelectedId] = useState(null);
+  const [adding, setAdding] = useState(false); // creating an additional bill series
 
   const [startNumber, setStartNumber] = useState(1);
   const [billFormat, setBillFormat] = useState(DEFAULT_BILL_FORMAT);
@@ -68,47 +129,90 @@ const InvoiceSetting = () => {
   const [logo, setLogo] = useState('');
   const [logoError, setLogoError] = useState('');
 
-  const current = settings.length === 1 ? settings[0] : null;
+  const current = adding ? null : (settings.find((s) => s._id === selectedId) || settings[0] || null);
+  const multiple = settings.length > 1;
 
-  const load = useCallback(async () => {
+  // Fills the forms from one series (or blank / prefilled for a new one).
+  const showSetting = useCallback((s, list) => {
+    if (s) {
+      reset({ ...defaults, ...pickDetails(s) });
+      setStartNumber(s.gstBillStartNumber || 1);
+      setBillFormat(s.gstBillFormat ?? DEFAULT_BILL_FORMAT);
+      setBillDigits(s.gstBillDigits ?? DEFAULT_BILL_DIGITS);
+      setLogo(s.logo || '');
+    } else {
+      // A new series shares the GSTIN and address of the default one; name, logo and numbering are its own.
+      const base = list?.find((x) => x.isDefault) || list?.[0];
+      reset({ ...defaults, ...(base ? pickDetails(base) : {}), name: '' });
+      setStartNumber(1);
+      setBillFormat(base ? 'A{NO}' : DEFAULT_BILL_FORMAT);
+      setBillDigits(base ? 0 : DEFAULT_BILL_DIGITS);
+      setLogo('');
+    }
+    setLogoError('');
+    setNumberingStatus({ type: '', message: '' });
+  }, [reset]);
+
+  const load = useCallback(async (keepId) => {
     setLoading(true);
     try {
-      const data = await fetchJson('/api/invoice-settings');
+      const data = await fetchJson('/api/invoice-settings?withLogo=1');
       setSettings(data);
-      reset(data.length === 1 ? { ...defaults, ...data[0] } : defaults);
-      setStartNumber(data.length === 1 ? (data[0].gstBillStartNumber || 1) : 1);
-      setBillFormat(data.length === 1 ? (data[0].gstBillFormat ?? DEFAULT_BILL_FORMAT) : DEFAULT_BILL_FORMAT);
-      setBillDigits(data.length === 1 ? (data[0].gstBillDigits ?? DEFAULT_BILL_DIGITS) : DEFAULT_BILL_DIGITS);
-      setLogo(data.length === 1 ? (data[0].logo || '') : '');
+      const pick = data.find((s) => s._id === keepId) || data.find((s) => s.isDefault) || data[0] || null;
+      setSelectedId(pick?._id || null);
+      setAdding(false);
+      showSetting(pick, data);
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
       setLoading(false);
     }
-  }, [reset]);
+  }, [showSetting]);
 
   useEffect(() => { load(); }, [load]);
+
+  const selectSeries = (s) => {
+    setStatus({ type: '', message: '' });
+    setAdding(false);
+    setSelectedId(s._id);
+    showSetting(s, settings);
+  };
+
+  const startAdding = () => {
+    setStatus({ type: '', message: '' });
+    setAdding(true);
+    showSetting(null, settings);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const onSubmit = async (values) => {
     setStatus({ type: '', message: '' });
     try {
-      const body = { ...values, logo };
+      const body = { ...pickDetails(values), logo };
+      let saved;
       if (current) {
-        await fetchJson(`/api/invoice-settings/${current._id}`, {
+        saved = await fetchJson(`/api/invoice-settings/${current._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        setStatus({ type: 'success', message: 'Invoice setting updated.' });
+        setStatus({ type: 'success', message: multiple ? `Series "${saved.name}" updated.` : 'Invoice setting updated.' });
       } else {
-        await fetchJson('/api/invoice-settings', {
+        if (adding) {
+          const problem = billFormatError(billFormat, billDigits);
+          if (problem) { setStatus({ type: 'error', message: problem }); return; }
+          body.gstBillFormat = cleanBillFormat(billFormat);
+          body.gstBillDigits = billDigits;
+        }
+        saved = await fetchJson('/api/invoice-settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        setStatus({ type: 'success', message: 'Invoice setting created.' });
+        setStatus({ type: 'success', message: adding ? `Bill series "${saved.name}" added. Pick it on the GST bill page.` : 'Invoice setting created.' });
       }
-      load();
+      clearShopSettingsCache();
+      load(saved?._id);
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     }
@@ -148,8 +252,9 @@ const InvoiceSetting = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startNumber: Number(startNumber), format: cleanBillFormat(billFormat), digits: billDigits }),
       });
+      clearShopSettingsCache();
       setNumberingStatus({ type: 'success', message: `Saved. The next GST bill will be ${formatBillNumber(billFormat, startNumber, billDigits)}.` });
-      load();
+      load(current._id);
     } catch (error) {
       setNumberingStatus({ type: 'error', message: error.message });
     } finally {
@@ -157,54 +262,69 @@ const InvoiceSetting = () => {
     }
   };
 
+  const makeDefault = async (s) => {
+    setStatus({ type: '', message: '' });
+    try {
+      await fetchJson(`/api/invoice-settings/${s._id}/set-default`, { method: 'PUT' });
+      clearShopSettingsCache();
+      setStatus({ type: 'success', message: `"${s.name}" is now the default series (used by other documents and preselected on new bills).` });
+      load(s._id);
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message });
+    }
+  };
+
   const remove = async (setting) => {
-    if (!window.confirm('Delete this invoice setting? This cannot be undone.')) return;
+    const label = multiple ? `the "${setting.name}" bill series` : 'this invoice setting';
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     setStatus({ type: '', message: '' });
     try {
       await fetchJson(`/api/invoice-settings/${setting._id}`, { method: 'DELETE' });
-      setStatus({ type: 'success', message: 'Invoice setting deleted.' });
+      clearShopSettingsCache();
+      setStatus({ type: 'success', message: multiple ? 'Bill series deleted.' : 'Invoice setting deleted.' });
       load();
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     }
   };
 
+  const heading = adding ? 'New bill series' : multiple ? `Bill series: ${current?.name || ''}` : 'Invoice setting';
+
   return (
     <main className="customer-add-page">
       <section className="customer-add-card">
         <div className="customer-add-heading">
           <p className="customer-add-eyebrow">Bill setup</p>
-          <h1>Invoice setting</h1>
-          <p>The shop details printed on every bill. Only one setting is allowed.</p>
+          <h1>{heading}</h1>
+          <p>
+            {adding
+              ? 'A second trade name under the same GSTIN: its own name, letterhead and bill numbers.'
+              : multiple
+                ? 'Each bill series has its own letterhead and bill numbers. Pick the series on the GST bill page.'
+                : 'The shop details printed on every bill.'}
+          </p>
         </div>
+
+        {(multiple || adding) && !loading && (
+          <div className="series-tabs" role="tablist" aria-label="Bill series">
+            {settings.map((s) => (
+              <button
+                key={s._id}
+                type="button"
+                role="tab"
+                aria-selected={!adding && current?._id === s._id}
+                className={`series-tab${!adding && current?._id === s._id ? ' is-active' : ''}`}
+                onClick={() => selectSeries(s)}
+              >
+                {s.name}{s.isDefault ? <small> · default</small> : null}
+              </button>
+            ))}
+            {adding && <span className="series-tab is-active">New series</span>}
+          </div>
+        )}
 
         {loading ? (
           <p>Loading…</p>
-        ) : settings.length > 1 ? (
-          <>
-            <p className="form-status error" role="alert">
-              {settings.length} invoice settings found. Bills need exactly one — delete the extras.
-            </p>
-            <div className="customer-table-wrapper">
-              <table className="customer-table">
-                <thead>
-                  <tr><th>Name</th><th>Phone</th><th>Area</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {settings.map((s) => (
-                    <tr key={s._id}>
-                      <td className="customer-name">{s.name}</td>
-                      <td>{s.phone || '—'}</td>
-                      <td>{s.area || '—'}</td>
-                      <td className="customer-actions">
-                        <button type="button" className="delete-button" onClick={() => remove(s)}>Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
         ) : (
           <>
           <form className="customer-form" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -212,7 +332,7 @@ const InvoiceSetting = () => {
               <legend>Shop details</legend>
               <div className="customer-form-grid">
                 <label className="customer-field">
-                  <span>Shop / business name <b>*</b></span>
+                  <span>{multiple || adding ? 'Trade / business name' : 'Shop / business name'} <b>*</b></span>
                   <input type="text" {...register('name', { required: 'Shop name is required.' })} />
                   {errors.name && <small className="field-error">{errors.name.message}</small>}
                 </label>
@@ -229,7 +349,11 @@ const InvoiceSetting = () => {
                     })}
                   />
                   {errors.gstin && <small className="field-error">{errors.gstin.message}</small>}
-                  <small>Printed on bills and used for GSTR-1. You can also manage it from Business Profile.</small>
+                  <small>
+                    {multiple || adding
+                      ? 'Every bill series uses the same GSTIN.'
+                      : 'Printed on bills and used for GSTR-1. You can also manage it from Business Profile.'}
+                  </small>
                 </label>
                 <label className="customer-field"><span>Phone</span><input type="tel" {...register('phone')} /></label>
                 <label className="customer-field"><span>Phone 2</span><input type="tel" {...register('phone_2')} /></label>
@@ -277,14 +401,32 @@ const InvoiceSetting = () => {
               </div>
             </fieldset>
 
+            {adding && (
+              <fieldset>
+                <legend>Bill numbers for this series</legend>
+                <p>Must differ from your other series, e.g. 1, 2, 3 there and A1, A2, A3 here.</p>
+                <NumberingFields
+                  format={billFormat} setFormat={setBillFormat}
+                  digits={billDigits} setDigits={setBillDigits}
+                  startNumber={1}
+                />
+              </fieldset>
+            )}
+
             {status.message && <p className={`form-status ${status.type}`} role="alert">{status.message}</p>}
 
             <div className="customer-form-actions">
+              {adding && (
+                <button type="button" className="secondary-button" onClick={() => load(selectedId)}>Cancel</button>
+              )}
+              {current && multiple && !current.isDefault && (
+                <button type="button" className="secondary-button" onClick={() => makeDefault(current)}>Make default</button>
+              )}
               {current && (
                 <button type="button" className="secondary-button" onClick={() => remove(current)}>Delete</button>
               )}
               <button type="submit" className="primary-button" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving…' : current ? 'Update setting' : 'Create setting'}
+                {isSubmitting ? 'Saving…' : adding ? 'Add bill series' : current ? (multiple ? 'Update series' : 'Update setting') : 'Create setting'}
               </button>
             </div>
           </form>
@@ -292,67 +434,17 @@ const InvoiceSetting = () => {
           {current && (
             <form className="customer-form" onSubmit={saveNumbering} noValidate>
               <fieldset>
-                <legend>GST bill numbering</legend>
+                <legend>GST bill numbering{multiple ? ` — ${current.name}` : ''}</legend>
                 <p>
                   How auto-generated GST bill numbers look, and the serial number the next one should use — useful
                   when switching over from paper bills or another system mid-way through. Bills you enter a number
                   for manually are unaffected.
                 </p>
-                <div className="customer-form-grid">
-                  <label className="customer-field">
-                    <span>Bill number format</span>
-                    <input
-                      type="text"
-                      placeholder="e.g. INV-{NO}  or leave empty for 1, 2, 3"
-                      value={billFormat}
-                      onChange={(e) => setBillFormat(e.target.value)}
-                    />
-                    <small>
-                      Type any letters you like. {'{NO}'} = the running number, {'{FY}'} = financial year ({currentFy()}).
-                      No {'{NO}'}? The number goes at the end. Empty = just the number. With {'{FY}'} the number restarts every April.
-                    </small>
-                  </label>
-                  <label className="customer-field">
-                    <span>Number digits</span>
-                    <select value={billDigits} onChange={(e) => setBillDigits(Number(e.target.value))}>
-                      {DIGIT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </label>
-                  <label className="customer-field">
-                    <span>Start next GST bill at</span>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={startNumber}
-                      onChange={(e) => setStartNumber(e.target.value)}
-                    />
-                  </label>
-                </div>
-
-                <div className="bill-format-presets">
-                  <span>Quick pick:</span>
-                  {BILL_PRESETS.map(([f, d]) => (
-                    <button
-                      key={`${f}|${d}`}
-                      type="button"
-                      className={`secondary-button${cleanBillFormat(billFormat) === f && billDigits === d ? ' is-active' : ''}`}
-                      onClick={() => { setBillFormat(f); setBillDigits(d); }}
-                    >
-                      {formatBillNumber(f, 1, d)}
-                    </button>
-                  ))}
-                </div>
-
-                {billFormatError(billFormat, billDigits) ? (
-                  <p className="form-status error">{billFormatError(billFormat, billDigits)}</p>
-                ) : (
-                  <p className="bill-format-preview">
-                    Next bills will be: {[0, 1, 2].map((i) => (
-                      <strong key={i}>{formatBillNumber(billFormat, Number(startNumber || 1) + i, billDigits)}</strong>
-                    ))} …
-                  </p>
-                )}
+                <NumberingFields
+                  format={billFormat} setFormat={setBillFormat}
+                  digits={billDigits} setDigits={setBillDigits}
+                  startNumber={startNumber} setStartNumber={setStartNumber}
+                />
               </fieldset>
 
               {numberingStatus.message && (
@@ -365,6 +457,18 @@ const InvoiceSetting = () => {
                 </button>
               </div>
             </form>
+          )}
+
+          {settings.length > 0 && !adding && (
+            <details className="series-advanced">
+              <summary>Advanced: more than one business under this GSTIN?</summary>
+              <p>
+                If you bill under two trade names with the same GSTIN, add a second bill series. It gets its own
+                letterhead and its own bill numbers (for example 1, 2, 3 for one and A1, A2, A3 for the other), and
+                you pick the series when making a GST bill. Both series go into the same GSTR-1.
+              </p>
+              <button type="button" className="secondary-button" onClick={startAdding}>Add another bill series</button>
+            </details>
           )}
           </>
         )}

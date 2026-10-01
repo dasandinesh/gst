@@ -5,6 +5,7 @@ import './estimateBillEntry.css';
 import { buildEstimateDocumentHtml, PAPER_WINDOW } from './estimateBillTemplate';
 import { useEntryShortcuts, fetchLatest, ShortcutHint } from '../common/entryShortcuts';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, withLogo } from '../../shopSettings';
 
 const todayString = () => {
   const now = new Date();
@@ -69,7 +70,7 @@ const EstimateBillEntry = () => {
   useEffect(() => {
     fetchJson('/api/estimate-customers').then(setCustomerList).catch(() => setCustomerList([]));
     fetchJson('/api/estimate-products').then(setProductList).catch(() => setProductList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(withLogo).then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
     customerNameRef.current?.focus();
   }, []);
 

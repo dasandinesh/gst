@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './mainfooter.css';
+import { getActiveSetting } from '../../shopSettings';
 
 const QUICK_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -14,8 +15,7 @@ const MainFooter = () => {
   const [shopName, setShopName] = useState('');
 
   useEffect(() => {
-    fetch('/api/invoice-settings/active')
-      .then((res) => (res.ok ? res.json() : null))
+    getActiveSetting()
       .then((data) => setShopName(data?.name || ''))
       .catch(() => {});
   }, []);

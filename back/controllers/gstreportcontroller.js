@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const GstSale = require('../model/salesmodule');
 const CreditNote = require('../model/creditnotemodule');
 const Purchase = require('../model/purchasemodule');
@@ -63,6 +64,54 @@ const mergeHsnSummary = (docsWithSign) => {
       total: round2(row.total),
     }))
     .sort((a, b) => a.hsnCode.localeCompare(b.hsnCode) || a.gstRate - b.gstRate);
+};
+
+// GET /api/reports/gst/monthly?months=6 — taxable value per calendar month for
+// the dashboard chart: sales (GST bills + marketplace − credit notes) and
+// purchases (− debit notes), the same figures as the GST summary below. The
+// database adds them up, so only a few numbers per month come back.
+exports.getMonthlyTotals = async (req, res) => {
+  try {
+    const count = Math.max(1, Math.min(24, Number(req.query.months) || 6));
+    const businessId = new mongoose.Types.ObjectId(String(req.auth.businessId));
+    const now = new Date();
+    const ist = new Date(now.getTime() + 330 * 60 * 1000); // read with getUTC* = Indian calendar date
+    const months = Array.from({ length: count }, (_, i) => {
+      const d = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth() - (count - 1 - i), 1));
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    });
+    // Bill dates are calendar dates in IST; widen the range by a day and group in IST.
+    const start = new Date(`${months[0]}-01T00:00:00.000Z`);
+    start.setUTCDate(start.getUTCDate() - 1);
+    const end = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+    const byMonth = (Model) => Model.aggregate([
+      { $match: { businessId, 'billDetails.date': { $gte: start, $lte: end } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m', date: '$billDetails.date', timezone: '+05:30' } },
+        taxable: { $sum: '$billDetails.totalTaxableValue' },
+      } },
+    ]);
+    const [sales, credits, purchases, debits, ecom] = await Promise.all([
+      byMonth(GstSale),
+      byMonth(CreditNote),
+      byMonth(Purchase),
+      byMonth(DebitNote),
+      EcomSale.aggregate([
+        { $match: { businessId, periodStart: { $gte: start, $lte: end } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$periodStart', timezone: 'UTC' } }, taxable: { $sum: '$totals.taxableValue' } } },
+      ]),
+    ]);
+    const lookup = (rows) => new Map(rows.map((r) => [r._id, num(r.taxable)]));
+    const [s, c, p, d, e] = [sales, credits, purchases, debits, ecom].map(lookup);
+    res.json(months.map((m) => ({
+      month: m,
+      sales: round2((s.get(m) || 0) + (e.get(m) || 0) - (c.get(m) || 0)),
+      purchases: round2((p.get(m) || 0) - (d.get(m) || 0)),
+    })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // GSTR-1/3B-style summary for a period: net outward supplies (GST sales minus

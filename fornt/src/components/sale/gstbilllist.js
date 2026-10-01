@@ -7,12 +7,13 @@ import { buildGstBillDocumentHtml, PAPER_WINDOW } from './gstBillTemplate';
 import { formatAddress, hasAddress } from '../common/shippingAddress';
 import { transportRows } from '../common/transportDetails';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, getSeriesList, settingForBill } from '../../shopSettings';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 const displayDate = (value) => formatDate(value, '—');
 
 const PAGE_SIZE = 20;
-const emptyFilters = { q: '', startDate: '', endDate: '', taxType: '' };
+const emptyFilters = { q: '', startDate: '', endDate: '', taxType: '', seriesId: '' };
 
 // Dedicated report page for GST bills: free-text search, date range and tax-type
 // filters, server-side pagination, plus the same view/print modal as the entry page.
@@ -20,6 +21,7 @@ const GstBillList = () => {
   const navigate = useNavigate();
   const [customerList, setCustomerList] = useState([]);
   const [invoiceSetting, setInvoiceSetting] = useState(null);
+  const [seriesList, setSeriesList] = useState([]); // only filled with 2+ bill series
 
   const [bills, setBills] = useState([]);
   const [total, setTotal] = useState(0);
@@ -36,7 +38,12 @@ const GstBillList = () => {
 
   useEffect(() => {
     fetchJson('/api/customers').then(setCustomerList).catch(() => setCustomerList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting()
+      .then((s) => {
+        setInvoiceSetting(s);
+        if (s?.seriesCount > 1) getSeriesList().then(setSeriesList).catch(() => setSeriesList([]));
+      })
+      .catch(() => setInvoiceSetting(null));
   }, []);
 
   const loadBills = useCallback(async (activeFilters = filters, activePage = page) => {
@@ -115,7 +122,9 @@ const GstBillList = () => {
     win.document.write('<p style="font-family:sans-serif;padding:20px;">Preparing bill…</p>');
     try {
       const customerRecord = customerList.find((c) => c.name?.toLowerCase() === (bill.customer?.name || '').trim().toLowerCase());
-      const html = await buildGstBillDocumentHtml(bill, invoiceSetting || {}, customerRecord || null, size, { showHsnSummary: includeHsnSummary });
+      // The bill's own series letterhead (logo fetched once, then reused).
+      const shop = await settingForBill(bill).catch(() => invoiceSetting);
+      const html = await buildGstBillDocumentHtml(bill, shop || {}, customerRecord || null, size, { showHsnSummary: includeHsnSummary });
       win.document.open();
       win.document.write(html);
       win.document.close();
@@ -159,6 +168,14 @@ const GstBillList = () => {
               <option value="IGST">IGST</option>
             </select>
           </label>
+          {seriesList.length > 1 && (
+            <label><span>Series</span>
+              <select className="bill-filter-option" value={filters.seriesId} onChange={(e) => update('seriesId', e.target.value)}>
+                <option value="">All</option>
+                {seriesList.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+              </select>
+            </label>
+          )}
           <button type="submit" className="gst-primary-button">Apply filters</button>
           <button type="button" className="gst-secondary-button" onClick={clear}>Clear</button>
         </form>

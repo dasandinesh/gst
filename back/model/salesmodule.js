@@ -43,6 +43,8 @@ const transportSchema = new mongoose.Schema({
 
 const gstBillDetailsSchema = new mongoose.Schema({
   invoiceNumber: { type: String },
+  // The bill series (invoice setting) it was numbered and is printed from.
+  seriesId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice_setting' },
   date: { type: Date, required: true },
   taxType: { type: String, enum: ['CGST_SGST', 'IGST'], default: 'CGST_SGST' },
   placeOfSupply: { type: String, default: '' },
@@ -86,6 +88,11 @@ const gstSaleSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 gstSaleSchema.index({ businessId: 1, 'billDetails.invoiceNumber': 1 }, { unique: true });
+// Bill list filtered by series. Partial, so only bills that have a series cost anything.
+gstSaleSchema.index(
+  { businessId: 1, 'billDetails.seriesId': 1, 'billDetails.date': -1 },
+  { partialFilterExpression: { 'billDetails.seriesId': { $exists: true } } }
+);
 
 const GstSaleModel = mongoose.model('GstSale', gstSaleSchema);
 GstSaleModel.gstSaleSchema = gstSaleSchema;

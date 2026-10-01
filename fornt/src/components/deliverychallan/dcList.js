@@ -6,6 +6,7 @@ import '../sale/gstbilllist.css';
 import { DcViewModal } from './dcEntry';
 import { printDc } from './dcTemplate';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting, withLogo } from '../../shopSettings';
 
 const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
 const displayDate = (value) => formatDate(value, '—');
@@ -31,7 +32,7 @@ const DcList = () => {
 
   useEffect(() => {
     fetchJson('/api/customers').then(setCustomerList).catch(() => setCustomerList([]));
-    fetchJson('/api/invoice-settings/active').then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
+    getActiveSetting().then(withLogo).then(setInvoiceSetting).catch(() => setInvoiceSetting(null));
   }, []);
 
   const loadChallans = useCallback(async (activeFilters = filters, activePage = page) => {

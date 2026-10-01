@@ -4,6 +4,7 @@ import './sale.css';
 import axios from 'axios';
 import { renderBillHtml, buildBillsDocumentHtml } from './billTemplate';
 import { formatDate } from '../../dateFormat';
+import { getActiveSetting } from '../../shopSettings';
 
 // Local calendar date as yyyy-mm-dd (toISOString alone would shift the day for non-UTC zones).
 const todayString = () => {
@@ -108,9 +109,9 @@ const SaleEntry = () => {
                 console.error('Error fetching product list:', error);
             });
 
-        axios.get('/api/invoice-settings/active')
-            .then(response => setInvoiceSetting(response.data))
-            .catch(() => setInvoiceSetting(null)); // 0 or >1 settings — bill prints without a letterhead.
+        getActiveSetting()
+            .then(setInvoiceSetting)
+            .catch(() => setInvoiceSetting(null)); // no setting yet — bill prints without a letterhead.
 
         CustomerNameInputRef.current?.focus();
     }, []);

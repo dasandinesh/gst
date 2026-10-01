@@ -62,8 +62,23 @@ const parserFor = (format) => {
 // Counter the running number comes from. With {FY} it restarts every financial
 // year; without it the numbers would repeat (INV-1 again next April) and bill
 // numbers must stay unique, so it runs on across years.
-const counterKey = (businessId, format, fy) => (cleanFormat(format ?? DEFAULT_FORMAT).includes('{FY}')
-  ? `${businessId}:gstsale:${fy}`
-  : `${businessId}:gstsale:all`);
+// A business's first bill series uses the business-wide counter (as before
+// series existed); every series added later (ownCounter) counts on its own.
+const counterKey = (businessId, format, fy, series = null) => {
+  const period = cleanFormat(format ?? DEFAULT_FORMAT).includes('{FY}') ? fy : 'all';
+  return series?.ownCounter ? `${businessId}:gstsale:${series._id}:${period}` : `${businessId}:gstsale:${period}`;
+};
 
-module.exports = { DEFAULT_FORMAT, DEFAULT_DIGITS, formatBillNumber, formatError, parserFor, counterKey, cleanFormat };
+// True when two series could produce the same bill number (e.g. both "{NO}"),
+// which GST forbids for one GSTIN. Checks sample numbers of each against the other.
+const SAMPLE_SEQS = [1, 7, 12, 99, 123, 1000, 12345];
+const seriesOverlap = (a, b) => [[a, b], [b, a]].some(([x, y]) => {
+  const parse = parserFor(y.format);
+  return SAMPLE_SEQS.some((seq) => ['26-27', '27-28'].some((fy) => {
+    const p = parse(formatBillNumber(x.format, fy, seq, x.digits));
+    // y reads it back — would y ever print it? Only if its own padding gives the same text.
+    return p && formatBillNumber(y.format, p.fy || fy, p.seq, y.digits) === formatBillNumber(x.format, fy, seq, x.digits);
+  }));
+});
+
+module.exports = { DEFAULT_FORMAT, DEFAULT_DIGITS, formatBillNumber, formatError, parserFor, counterKey, cleanFormat, seriesOverlap };

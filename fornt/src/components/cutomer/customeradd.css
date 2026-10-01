@@ -29,6 +29,15 @@
 .bill-format-presets button.is-active { color: #fff; background: #237553; border-color: #237553; }
 .bill-format-preview { margin: 14px 0 0; font-size: 14px; color: #5e706a; }
 .bill-format-preview strong { margin: 0 6px; color: #12352c; }
+/* Invoice Settings → bill series: tabs (only with 2+ series) and the Advanced box. */
+.series-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.series-tab { padding: 8px 14px; font: inherit; font-weight: 600; border-radius: 999px; border: 1px solid #9bb5ac; background: #fff; color: #285749; cursor: pointer; }
+.series-tab small { font-weight: 500; opacity: .8; }
+.series-tab.is-active { color: #fff; background: #237553; border-color: #237553; }
+.series-advanced { margin-top: 18px; padding: 12px 14px; border: 1px dashed #c5d6cf; border-radius: 8px; color: #5e706a; font-size: 13px; }
+.series-advanced summary { cursor: pointer; font-weight: 600; color: #285749; }
+.series-advanced p { margin: 10px 0; }
+.series-advanced button { padding: 7px 12px; font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; }
 /* Hint + "Copy from address above" button at the top of the Shipping address section. */
 .customer-ship-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 0 14px; font-size: 13px; color: #5e706a; }
 .customer-ship-hint button { flex: 0 0 auto; padding: 7px 12px; font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; }
